@@ -5,6 +5,7 @@ export default async function handler(req) {
   const CHAT_IDS = [
   "-5580835155"
 ];
+  const CHAT_ID = CHAT_IDS[0];
 
   if (req.method !== "POST")
     return new Response("Method Not Allowed", { status: 405 });
