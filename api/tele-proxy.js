@@ -1,7 +1,7 @@
 export const config = { runtime: "edge" };
 
 export default async function handler(req) {
-  const TOKEN = "8962152623:AAH2gxqS-QXfs_bYaHHwoPG6xv7pWJXLSmY";
+  const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
   if (req.method !== "POST")
