@@ -3,7 +3,7 @@ export const config = { runtime: "edge" };
 export default async function handler(req) {
   const TOKEN = "8962152623:AAH2gxqS-QXfs_bYaHHwoPG6xv7pWJXLSmY";
   const CHAT_ID = 8523959891;
-  const CHAT_ID = -5580835155;
+  const CHAT_ID = -1004487353529;
 await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
