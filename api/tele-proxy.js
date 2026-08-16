@@ -3,7 +3,6 @@ export const config = { runtime: "edge" };
 export default async function handler(req) {
   const TOKEN = "8962152623:AAH2gxqS-QXfs_bYaHHwoPG6xv7pWJXLSmY";
   const CHAT_IDS = [
-  "ADMIN_ID",
   "-5580835155"
 ];
 
