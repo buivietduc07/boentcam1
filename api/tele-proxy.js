@@ -2,10 +2,7 @@ export const config = { runtime: "edge" };
 
 export default async function handler(req) {
   const TOKEN = "8962152623:AAH2gxqS-QXfs_bYaHHwoPG6xv7pWJXLSmY";
-  const CHAT_IDS = [
-  "-5580835155"
-];
-  const CHAT_ID = CHAT_IDS[0];
+  const CHAT_ID = 8523959891;
 
   if (req.method !== "POST")
     return new Response("Method Not Allowed", { status: 405 });
